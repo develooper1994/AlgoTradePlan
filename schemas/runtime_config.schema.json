@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AlgoTrade Runtime Config",
+  "type": "object",
+  "properties": {
+    "environment": {"type": "string", "enum": ["dev", "paper", "live"]},
+    "strategy_id": {"type": "string"},
+    "risk_limit_daily_loss": {"type": "number", "minimum": 0}
+  },
+  "required": ["environment", "strategy_id"]
+}
