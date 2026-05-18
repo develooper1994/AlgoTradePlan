@@ -1,0 +1,14 @@
+{
+  "python.defaultInterpreterPath": "python",
+  "python.testing.unittestEnabled": true,
+  "python.testing.pytestEnabled": false,
+  "python.analysis.typeCheckingMode": "basic",
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/__pycache__": true
+  },
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false
+  }
+}

@@ -1,0 +1,9 @@
+site_name: AlgoTradePlan Docs
+nav:
+  - Home: docs/README.md
+  - Quickstart: docs/onboarding_10min.md
+  - Architecture: ARCHITECTURE.md
+  - Environment: docs/environment_switching.md
+  - Storage: docs/storage_provenance.md
+  - Extensibility: docs/extensibility.md
+  - Dependency Policy: docs/dependency_policy.md
