@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import ssl
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -36,6 +36,7 @@ from src.algotradeplan.plugins.risk.notional_guard import NotionalGuardRiskPlugi
 from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import (
     EmaCrossAtrStopStrategyPlugin,
 )
+from src.algotradeplan.portfolio.manager import PortfolioManager
 
 JsonGetter = Callable[[str, dict[str, Any]], Any]
 _ALLOWED_API_PREFIXES = (
@@ -84,34 +85,7 @@ class PipelineReport:
     risk_decision: dict[str, Any]
     portfolio: dict[str, Any]
     metrics: dict[str, float]
-
-
-class _PortfolioManager:
-    def __init__(self, starting_cash: float) -> None:
-        self.cash = starting_cash
-        self.positions: dict[str, float] = {}
-
-    def apply_execution(self, execution: dict[str, Any] | None) -> dict[str, Any]:
-        if not execution:
-            return self.snapshot()
-
-        symbol = str(execution.get("symbol"))
-        quantity = float(execution.get("quantity", 0.0))
-        price = float(execution.get("price", 0.0))
-        notional = quantity * price
-        action = str(execution.get("action", "")).lower()
-
-        if action == "buy":
-            self.cash -= notional
-            self.positions[symbol] = self.positions.get(symbol, 0.0) + quantity
-        elif action == "sell":
-            self.cash += notional
-            self.positions[symbol] = self.positions.get(symbol, 0.0) - quantity
-
-        return self.snapshot()
-
-    def snapshot(self) -> dict[str, Any]:
-        return {"cash": round(self.cash, 6), "positions": dict(self.positions)}
+    backtest: dict[str, Any] = field(default_factory=dict)
 
 
 def _default_json_getter(url: str, params: dict[str, Any]) -> Any:
@@ -391,8 +365,10 @@ def run_real_data_autopilot(
             "candles": selected_candles,
         }
     )
-    portfolio = _PortfolioManager(starting_cash=DEFAULT_STARTING_CASH)
+    portfolio = PortfolioManager(starting_cash=DEFAULT_STARTING_CASH)
     portfolio_snapshot = portfolio.apply_execution(flow_result.execution)
+
+    backtest_summary = intent.get("backtest", {})
 
     for coverage in source_coverages:
         metrics.record("market_symbols_discovered", coverage.asset_count, source=coverage.source)
@@ -400,7 +376,7 @@ def run_real_data_autopilot(
     metrics.record("news_stories", len(news_rows), source="hn")
     metrics.record("macro_rates", len(macro_snapshot.get("rates", {})), source="frankfurter")
     metrics.record("feature_rows", len(feature_result.feature_records), source="feature")
-    metrics.record("backtest_net_pnl", float(intent["backtest"].get("net_pnl", 0.0)), source="ema_atr")
+    metrics.record("backtest_net_pnl", float(backtest_summary.get("net_pnl", 0.0)), source="ema_atr")
 
     logger.info(
         "real_data_autopilot_completed",
@@ -423,6 +399,7 @@ def run_real_data_autopilot(
         intent=intent,
         risk_decision=flow_result.risk_decision,
         portfolio=portfolio_snapshot,
+        backtest=backtest_summary,
         metrics={
                 "market_symbols_total": metrics.total("market_symbols_discovered"),
                 "source_issue_count": metrics.total("source_issues"),
@@ -455,6 +432,7 @@ def run_real_data_autopilot(
                 "intent": report.intent,
                 "risk_decision": report.risk_decision,
                 "portfolio": report.portfolio,
+                "backtest": report.backtest,
                 "metrics": report.metrics,
                 "logs": [entry.to_json() for entry in logger.entries],
             },

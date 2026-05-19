@@ -43,6 +43,8 @@ def main() -> None:
     if args.interactive:
         print("\n=== intent ===")
         print(json.dumps(report.intent, indent=2))
+        print("\n=== backtest ===")
+        print(json.dumps(report.backtest, indent=2))
         print("\n=== risk ===")
         print(json.dumps(report.risk_decision, indent=2))
         print("\n=== portfolio ===")

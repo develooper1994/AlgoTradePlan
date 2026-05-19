@@ -8,6 +8,7 @@ from src.algotradeplan.backtest.realistic import (
     BacktestConfig,
     BacktestSummary,
     RealisticBacktester,
+    TradeFill,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "BacktestConfig",
     "BacktestSummary",
     "RealisticBacktester",
+    "TradeFill",
 ]
