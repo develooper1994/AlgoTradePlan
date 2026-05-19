@@ -1,6 +1,7 @@
 # Documentation Index
 
 - `MASTER_PLAN.md`: canonical phased blueprint and decision log
+- `PHASE_STATUS.md`: current completed/partial/missing phase snapshot and next target order
 - `DATA_STRATEGY.md`: multi-domain ingestion, storage, quality, and provenance strategy
 - `ARCHITECTURE.md`: current architecture diagram and module boundaries
 - `AGENTS.md`: agent contracts, automation policy, and working rules

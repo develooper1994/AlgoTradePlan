@@ -53,6 +53,7 @@ make smoke
 
 ## Key Entry Points
 - Master plan: `docs/MASTER_PLAN.md`
+- Phase status snapshot: `docs/PHASE_STATUS.md`
 - Data strategy: `docs/DATA_STRATEGY.md`
 - Architecture: `docs/ARCHITECTURE.md`
 - Agent model and plugin ownership: `docs/AGENTS.md`
