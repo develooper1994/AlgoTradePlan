@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from typing import Any
 
 from src.algotradeplan.plugins.data.contracts import DataRequest
 from src.algotradeplan.plugins.data.example_data_storage import InMemoryDataStoragePlugin
@@ -24,9 +25,11 @@ class EmptyDataSource:
 
 
 class DataIngestionPipelineExamplesTest(unittest.TestCase):
+    FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+
     @staticmethod
-    def _load_scenarios() -> list[dict[str, str]]:
-        fixtures_path = Path(__file__).resolve().parents[1] / "fixtures" / "data_ingestion_assets.json"
+    def _load_scenarios() -> list[dict[str, Any]]:
+        fixtures_path = DataIngestionPipelineExamplesTest.FIXTURES_DIR / "data_ingestion_assets.json"
         with fixtures_path.open("r", encoding="utf-8") as fixture_file:
             fixture_payload = json.load(fixture_file)
         return fixture_payload["scenarios"]
