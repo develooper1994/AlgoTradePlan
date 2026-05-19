@@ -13,6 +13,7 @@ Required checks:
 ## Allowlist (enforced by `scripts/security_check.py`)
 - `pandas`
 - `scikit-learn`
+- `ccxt`
 - `mkdocs`
 - `mkdocs-material`
 

@@ -18,6 +18,7 @@ ALLOWED_PACKAGES = frozenset(
     {
         "pandas",
         "scikit-learn",
+        "ccxt",
         "mkdocs",
         "mkdocs-material",
     }

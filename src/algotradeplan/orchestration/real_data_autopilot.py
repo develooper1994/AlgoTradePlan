@@ -22,13 +22,17 @@ from src.algotradeplan.plugins.data.curated.feature_view import ExampleFeatureVi
 from src.algotradeplan.plugins.data.example_data_storage import InMemoryDataStoragePlugin
 from src.algotradeplan.plugins.data.example_provenance import ExampleProvenancePlugin
 from src.algotradeplan.plugins.data.example_quality_check import RequiredFieldsQualityPlugin
+from src.algotradeplan.plugins.data.market.ccxt_market_source import (
+    CcxtDependencyError,
+    CcxtMarketDataAgent,
+)
 from src.algotradeplan.plugins.data.market.static_market_batch_source import (
     StaticMarketBatchSourcePlugin,
 )
 from src.algotradeplan.plugins.data.pipeline import DataIngestionPipeline
 from src.algotradeplan.plugins.risk.notional_guard import NotionalGuardRiskPlugin
-from src.algotradeplan.plugins.strategies.autopilot_signal_strategy import (
-    AutopilotSignalStrategyPlugin,
+from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import (
+    EmaCrossAtrStopStrategyPlugin,
 )
 
 JsonGetter = Callable[[str, dict[str, Any]], Any]
@@ -42,7 +46,6 @@ DEFAULT_ORDER_QUANTITY = 0.01
 DEFAULT_MAX_NOTIONAL = 1_000.0
 DEFAULT_STARTING_CASH = 10_000.0
 MIN_KLINE_FIELD_COUNT = 5
-EMA_WINDOW_CANDIDATES: tuple[tuple[int, int], ...] = ((3, 9), (5, 13), (8, 21), (13, 34))
 
 
 class RealDataSmokeError(RuntimeError):
@@ -55,14 +58,6 @@ class SourceCoverage:
     asset_count: int
     selected_asset: str
     datasets: dict[str, int]
-
-
-@dataclass(frozen=True)
-class BacktestResult:
-    short_window: int
-    long_window: int
-    score: float
-    signal: str
 
 
 @dataclass(frozen=True)
@@ -249,7 +244,7 @@ def _require_dataset_coverage(source: str, datasets: dict[str, Any], allow_parti
     return sizes
 
 
-def _records_from_binance_klines(symbol: str, klines: list[list[Any]]) -> list[DataRecord]:
+def _records_from_klines(symbol: str, source: str, klines: list[list[Any]]) -> list[DataRecord]:
     records: list[DataRecord] = []
     for row in klines:
         if len(row) < MIN_KLINE_FIELD_COUNT:
@@ -260,7 +255,7 @@ def _records_from_binance_klines(symbol: str, klines: list[list[Any]]) -> list[D
                 key=f"{symbol}-kline-{open_time_ms}",
                 observed_at=datetime.fromtimestamp(open_time_ms / 1000, tz=UTC).isoformat(),
                 domain="market",
-                source="binance_futures_public",
+                source=source,
                 asset_type="perpetual",
                 payload={
                     "symbol": symbol,
@@ -275,47 +270,77 @@ def _records_from_binance_klines(symbol: str, klines: list[list[Any]]) -> list[D
     return records
 
 
-def _ema(values: list[float], window: int) -> list[float]:
-    if not values:
-        return []
-    alpha = 2 / (window + 1)
-    series = [values[0]]
-    for value in values[1:]:
-        series.append((value * alpha) + (series[-1] * (1 - alpha)))
-    return series
+def _collect_market_sources(
+    *,
+    max_symbols_per_source: int,
+    allow_partial: bool,
+    json_getter: JsonGetter | None,
+    market_agent: CcxtMarketDataAgent | None,
+) -> tuple[list[SourceCoverage], dict[str, dict[str, Any]]]:
+    source_coverages: list[SourceCoverage] = []
+    datasets_by_source: dict[str, dict[str, Any]] = {}
 
+    if json_getter:
+        binance_symbols = _discover_binance_symbols(json_getter, max_symbols_per_source)
+        if not binance_symbols:
+            raise RealDataSmokeError("binance discovery returned no symbols")
+        binance_asset = _select_preferred_asset(binance_symbols)
+        binance_data = _fetch_binance_datasets(json_getter, binance_asset)
+        binance_sizes = _require_dataset_coverage("binance", binance_data, allow_partial)
+        source_coverages.append(
+            SourceCoverage(
+                source="binance_futures",
+                asset_count=len(binance_symbols),
+                selected_asset=binance_asset,
+                datasets=binance_sizes,
+            )
+        )
+        datasets_by_source["binance_futures"] = binance_data
 
-def _evaluate_ema_strategy(closes: list[float], short_window: int, long_window: int) -> BacktestResult:
-    short_series = _ema(closes, short_window)
-    long_series = _ema(closes, long_window)
-    if len(closes) < 2:
-        return BacktestResult(short_window=short_window, long_window=long_window, score=0.0, signal="hold")
+        bybit_symbols = _discover_bybit_symbols(json_getter, max_symbols_per_source)
+        if not bybit_symbols:
+            raise RealDataSmokeError("bybit discovery returned no symbols")
+        bybit_asset = _select_preferred_asset(bybit_symbols)
+        bybit_data = _fetch_bybit_datasets(json_getter, bybit_asset)
+        bybit_sizes = _require_dataset_coverage("bybit", bybit_data, allow_partial)
+        source_coverages.append(
+            SourceCoverage(
+                source="bybit_linear",
+                asset_count=len(bybit_symbols),
+                selected_asset=bybit_asset,
+                datasets=bybit_sizes,
+            )
+        )
+        datasets_by_source["bybit_linear"] = bybit_data
+        return source_coverages, datasets_by_source
 
-    score = 0.0
-    for index in range(1, len(closes) - 1):
-        side = 1.0 if short_series[index] >= long_series[index] else -1.0
-        score += (closes[index + 1] - closes[index]) * side
-
-    latest_signal = "buy" if short_series[-1] >= long_series[-1] else "sell"
-    return BacktestResult(
-        short_window=short_window,
-        long_window=long_window,
-        score=round(score, 8),
-        signal=latest_signal,
-    )
-
-
-def _optimize_ema(closes: list[float]) -> BacktestResult:
-    valid_pairs = [(s, l) for s, l in EMA_WINDOW_CANDIDATES if l < len(closes) and s < l]
-    if not valid_pairs:
-        return BacktestResult(short_window=1, long_window=2, score=0.0, signal="hold")
-
-    best = _evaluate_ema_strategy(closes, valid_pairs[0][0], valid_pairs[0][1])
-    for short_window, long_window in valid_pairs[1:]:
-        current = _evaluate_ema_strategy(closes, short_window, long_window)
-        if current.score > best.score:
-            best = current
-    return best
+    agent = market_agent or CcxtMarketDataAgent()
+    for exchange_id, source_name in (("binanceusdm", "binance_futures"), ("bybit", "bybit_linear")):
+        try:
+            symbols = agent.discover_assets(exchange_id, max_symbols_per_source)
+            if not symbols:
+                raise RealDataSmokeError(f"{exchange_id} discovery returned no symbols")
+            selected_asset = _select_preferred_asset(symbols)
+            datasets = agent.fetch_exchange_datasets(exchange_id, selected_asset)
+            sizes = _require_dataset_coverage(source_name, datasets, allow_partial)
+            source_coverages.append(
+                SourceCoverage(
+                    source=source_name,
+                    asset_count=len(symbols),
+                    selected_asset=selected_asset,
+                    datasets=sizes,
+                )
+            )
+            datasets_by_source[source_name] = datasets
+        except CcxtDependencyError as exc:
+            raise RealDataSmokeError(str(exc)) from exc
+        except Exception as exc:
+            if allow_partial:
+                continue
+            raise RealDataSmokeError(str(exc)) from exc
+    if not source_coverages:
+        raise RealDataSmokeError("no market source coverage available")
+    return source_coverages, datasets_by_source
 
 
 def run_real_data_autopilot(
@@ -324,41 +349,17 @@ def run_real_data_autopilot(
     max_symbols_per_source: int = 5,
     allow_partial: bool = False,
     json_getter: JsonGetter | None = None,
+    market_agent: CcxtMarketDataAgent | None = None,
 ) -> PipelineReport:
     get_json = json_getter or _default_json_getter
     logger = StructuredLogger(correlation_id=f"real-smoke-{datetime.now(UTC).timestamp()}")
     metrics = InMemoryMetricsSink()
 
-    source_coverages: list[SourceCoverage] = []
-
-    binance_symbols = _discover_binance_symbols(get_json, max_symbols_per_source)
-    if not binance_symbols:
-        raise RealDataSmokeError("binance discovery returned no symbols")
-    binance_asset = _select_preferred_asset(binance_symbols)
-    binance_data = _fetch_binance_datasets(get_json, binance_asset)
-    binance_sizes = _require_dataset_coverage("binance", binance_data, allow_partial)
-    source_coverages.append(
-        SourceCoverage(
-            source="binance_futures",
-            asset_count=len(binance_symbols),
-            selected_asset=binance_asset,
-            datasets=binance_sizes,
-        )
-    )
-
-    bybit_symbols = _discover_bybit_symbols(get_json, max_symbols_per_source)
-    if not bybit_symbols:
-        raise RealDataSmokeError("bybit discovery returned no symbols")
-    bybit_asset = _select_preferred_asset(bybit_symbols)
-    bybit_data = _fetch_bybit_datasets(get_json, bybit_asset)
-    bybit_sizes = _require_dataset_coverage("bybit", bybit_data, allow_partial)
-    source_coverages.append(
-        SourceCoverage(
-            source="bybit_linear",
-            asset_count=len(bybit_symbols),
-            selected_asset=bybit_asset,
-            datasets=bybit_sizes,
-        )
+    source_coverages, datasets_by_source = _collect_market_sources(
+        max_symbols_per_source=max_symbols_per_source,
+        allow_partial=allow_partial,
+        json_getter=json_getter,
+        market_agent=market_agent,
     )
 
     news_assets = _discover_news_assets(get_json, max_symbols_per_source)
@@ -373,32 +374,55 @@ def run_real_data_autopilot(
     if not macro_snapshot.get("rates") and not allow_partial:
         raise RealDataSmokeError("macro source returned no rates")
 
-    market_records = _records_from_binance_klines(binance_asset, binance_data["kline"])
+    market_records: list[DataRecord] = []
+    for coverage in source_coverages:
+        source_datasets = datasets_by_source[coverage.source]
+        market_records.extend(
+            _records_from_klines(
+                symbol=coverage.selected_asset,
+                source=f"{coverage.source}_public",
+                klines=source_datasets["kline"],
+            )
+        )
+
+    if not market_records:
+        raise RealDataSmokeError("no normalized market records produced from kline datasets")
+
+    selected_coverage = source_coverages[0]
     pipeline = DataIngestionPipeline(
         source=StaticMarketBatchSourcePlugin(market_records),
         storage=InMemoryDataStoragePlugin(),
         quality=RequiredFieldsQualityPlugin(),
         provenance=ExampleProvenancePlugin(),
     )
-    ingestion_result = pipeline.ingest(DataRequest(dataset="kline", symbol=binance_asset))
+    ingestion_result = pipeline.ingest(
+        DataRequest(dataset="kline", symbol=selected_coverage.selected_asset)
+    )
     feature_result = ExampleFeatureViewPlugin().build(ingestion_result.records, ingestion_result.provenance)
 
-    closes = [float(record.payload["close"]) for record in ingestion_result.records]
-    optimized = _optimize_ema(closes)
+    selected_candles = [
+        record.payload
+        for record in ingestion_result.records
+        if record.payload.get("symbol") == selected_coverage.selected_asset
+    ]
+    strategy = EmaCrossAtrStopStrategyPlugin()
+    signal = strategy.generate_signal({"candles": selected_candles})
+    action = str(signal.get("action", "hold")).lower()
+    latest_price = (
+        float(selected_candles[-1].get("close", 0.0)) if selected_candles else 0.0
+    )
     intent = {
-        "symbol": binance_asset,
-        "action": optimized.signal,
+        "symbol": selected_coverage.selected_asset,
+        "action": action,
         "quantity": DEFAULT_ORDER_QUANTITY,
-        "price": closes[-1] if closes else 0.0,
-        "strategy": {
-            "short_window": optimized.short_window,
-            "long_window": optimized.long_window,
-            "score": optimized.score,
-        },
+        "price": latest_price,
+        "strategy": signal.get("strategy", {}),
+        "features": signal.get("features", {}),
+        "backtest": signal.get("backtest", {}),
     }
 
     flow = TradeFlow(
-        strategy=AutopilotSignalStrategyPlugin(optimized.signal),
+        strategy=strategy,
         risk=NotionalGuardRiskPlugin(max_notional=DEFAULT_MAX_NOTIONAL),
         execution=SimulatedFillExecutionConnectorPlugin(),
     )
@@ -407,23 +431,24 @@ def run_real_data_autopilot(
             "symbol": intent["symbol"],
             "price": intent["price"],
             "quantity": intent["quantity"],
+            "candles": selected_candles,
         }
     )
     portfolio = _PortfolioManager(starting_cash=DEFAULT_STARTING_CASH)
     portfolio_snapshot = portfolio.apply_execution(flow_result.execution)
 
-    metrics.record("market_symbols_discovered", len(binance_symbols), source="binance")
-    metrics.record("market_symbols_discovered", len(bybit_symbols), source="bybit")
+    for coverage in source_coverages:
+        metrics.record("market_symbols_discovered", coverage.asset_count, source=coverage.source)
     metrics.record("news_stories", len(news_rows), source="hn")
     metrics.record("macro_rates", len(macro_snapshot.get("rates", {})), source="frankfurter")
     metrics.record("feature_rows", len(feature_result.feature_records), source="feature")
-    metrics.record("backtest_score", optimized.score, source="ema")
+    metrics.record("backtest_net_pnl", float(intent["backtest"].get("net_pnl", 0.0)), source="ema_atr")
 
     logger.info(
         "real_data_autopilot_completed",
         market_sources=[coverage.source for coverage in source_coverages],
-        selected_symbol=binance_asset,
-        signal=optimized.signal,
+        selected_symbol=selected_coverage.selected_asset,
+        signal=action,
         approved=flow_result.risk_decision.get("approved"),
     )
 
@@ -437,13 +462,13 @@ def run_real_data_autopilot(
         risk_decision=flow_result.risk_decision,
         portfolio=portfolio_snapshot,
         metrics={
-            "market_symbols_total": metrics.total("market_symbols_discovered"),
-            "news_stories": metrics.total("news_stories"),
-            "macro_rates": metrics.total("macro_rates"),
-            "feature_rows": metrics.total("feature_rows"),
-            "backtest_score": metrics.total("backtest_score"),
-        },
-    )
+                "market_symbols_total": metrics.total("market_symbols_discovered"),
+                "news_stories": metrics.total("news_stories"),
+                "macro_rates": metrics.total("macro_rates"),
+                "feature_rows": metrics.total("feature_rows"),
+                "backtest_net_pnl": metrics.total("backtest_net_pnl"),
+            },
+        )
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
