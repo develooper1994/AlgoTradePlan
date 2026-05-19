@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Callable
 
 JsonGetter = Callable[[str, dict[str, Any]], Any]
 
 _DEFAULT_QUOTE_ASSETS = {"USD", "USDT", "USDC"}
+_FALLBACK_EPOCH_MS_BASE = 1_700_000_000_000
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,16 @@ def _attach_derived_funding(symbol: str, datasets: dict[str, Any]) -> dict[str, 
     copied = dict(datasets)
     copied["funding"] = [{"symbol": symbol, "rate": 0.0, "derived": True}]
     return copied
+
+
+def _to_epoch_ms(value: str | None, fallback_ms: int) -> int:
+    if not value:
+        return fallback_ms
+    normalized = value.replace(" ", "T")
+    try:
+        return int(datetime.fromisoformat(normalized).replace(tzinfo=UTC).timestamp() * 1000)
+    except ValueError:
+        return fallback_ms
 
 
 def _binance_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
@@ -262,16 +274,18 @@ def _alpha_vantage_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         },
     )
     points = payload.get("Time Series (1min)", {})
-    klines = [
-        [
-            int(index),
-            str(row.get("1. open", "0")),
-            str(row.get("2. high", "0")),
-            str(row.get("3. low", "0")),
-            str(row.get("4. close", "0")),
-        ]
-        for index, row in enumerate(points.values(), start=1)
-    ]
+    klines: list[list[Any]] = []
+    for index, (ts, row) in enumerate(points.items(), start=1):
+        fallback = _FALLBACK_EPOCH_MS_BASE + (index * 60_000)
+        klines.append(
+            [
+                _to_epoch_ms(str(ts), fallback),
+                str(row.get("1. open", "0")),
+                str(row.get("2. high", "0")),
+                str(row.get("3. low", "0")),
+                str(row.get("4. close", "0")),
+            ]
+        )
     return _attach_derived_funding(
         symbol,
         {
@@ -306,10 +320,18 @@ def _twelvedata_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         },
     )
     values = payload.get("values", [])
-    klines = [
-        [index, row.get("open", "0"), row.get("high", "0"), row.get("low", "0"), row.get("close", "0")]
-        for index, row in enumerate(values, start=1)
-    ]
+    klines: list[list[Any]] = []
+    for index, row in enumerate(values, start=1):
+        fallback = _FALLBACK_EPOCH_MS_BASE + (index * 60_000)
+        klines.append(
+            [
+                _to_epoch_ms(str(row.get("datetime", "")), fallback),
+                row.get("open", "0"),
+                row.get("high", "0"),
+                row.get("low", "0"),
+                row.get("close", "0"),
+            ]
+        )
     tick_payload = (
         [{"symbol": symbol, "price": values[0].get("close", "0")}]
         if values
@@ -410,7 +432,12 @@ def _quandl_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         {"rows": 120, "api_key": api_key},
     )
     data = payload.get("dataset", {}).get("data", [])
-    klines = [[idx, row[1], row[2], row[3], row[4]] for idx, row in enumerate(data, start=1) if len(row) >= 5]
+    klines = []
+    for idx, row in enumerate(data, start=1):
+        if len(row) < 5:
+            continue
+        fallback = _FALLBACK_EPOCH_MS_BASE + (idx * 60_000)
+        klines.append([_to_epoch_ms(str(row[0]), fallback), row[1], row[2], row[3], row[4]])
     return _attach_derived_funding(
         symbol,
         {
@@ -443,10 +470,13 @@ def _iex_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         f"https://cloud.iexapis.com/stable/stock/{symbol}/chart/1d",
         {"chartInterval": 1, "token": api_key},
     )
-    klines = [
-        [idx, row.get("open", 0), row.get("high", 0), row.get("low", 0), row.get("close", 0)]
-        for idx, row in enumerate(chart, start=1)
-    ]
+    klines = []
+    for idx, row in enumerate(chart, start=1):
+        fallback = _FALLBACK_EPOCH_MS_BASE + (idx * 60_000)
+        date_text = str(row.get("date", "")).strip()
+        minute = str(row.get("minute", "")).strip()
+        timestamp = _to_epoch_ms(f"{date_text}T{minute}:00" if date_text and minute else date_text, fallback)
+        klines.append([timestamp, row.get("open", 0), row.get("high", 0), row.get("low", 0), row.get("close", 0)])
     return _attach_derived_funding(
         symbol,
         {
