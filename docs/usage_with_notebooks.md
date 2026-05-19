@@ -59,13 +59,15 @@ report.source_inventory, report.market_sources[0], report.source_issues[:2]
 # Asset discovery + ingest from registry-backed providers
 from src.algotradeplan.plugins.data.market import collect_market_source_data
 import json
+import ssl
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 def get_json(url: str, params: dict[str, object]):
     query = urlencode({k: v for k, v in params.items() if v is not None})
     request_url = f"{url}?{query}" if query else url
-    with urlopen(request_url, timeout=20) as response:  # nosec B310 (notebook demo)
+    request = Request(request_url, headers={"Accept": "application/json", "User-Agent": "AlgoTradePlanNotebook/1.0"})
+    with urlopen(request, timeout=20, context=ssl.create_default_context()) as response:
         return json.loads(response.read().decode("utf-8"))
 
 results, issues = collect_market_source_data(
