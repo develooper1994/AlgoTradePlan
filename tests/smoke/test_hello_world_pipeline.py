@@ -24,6 +24,15 @@ class HelloWorldSmokeTest(unittest.TestCase):
         )
         self.assertIn("hello_world_e2e_ok", completed.stdout)
 
+    def test_notebook_workflow_structure_smoke(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "scripts/notebook_smoke_check.py"],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        self.assertIn("notebook_smoke_ok", completed.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
