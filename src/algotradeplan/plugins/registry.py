@@ -32,10 +32,11 @@ _CATEGORY_ALIASES = {
     "strategies": "strategy",
     "connectors": "execution_connector",
 }
+_CATEGORY_INDEX = 3  # src.algotradeplan.plugins.{category}.{module}
 
 
 def _resolve_category(module_parts: list[str]) -> str:
-    raw = module_parts[3] if len(module_parts) > 3 else "unknown"
+    raw = module_parts[_CATEGORY_INDEX] if len(module_parts) > _CATEGORY_INDEX else "unknown"
     return _CATEGORY_ALIASES.get(raw, raw)
 
 
@@ -110,6 +111,7 @@ def load_plugin_class(
     module = import_module(descriptor.module)
     plugin_class = getattr(module, descriptor.class_name, None)
     if plugin_class is None:
+        # Defensive guard for module hot-reload/refactor drift after discovery cache was built.
         raise KeyError(
             f"class '{descriptor.class_name}' for plugin_id '{plugin_id}' not found in {descriptor.module}"
         )
