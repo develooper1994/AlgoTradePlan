@@ -1,53 +1,18 @@
 # AlgoTradePlan
 
-Production-ready algorithmic trading skeleton with a phased execution plan, extensibility points, and operational guardrails.
+Minimal, plugin-based algorithmic trading framework skeleton.
 
-## Production Readiness Goals
-- frictionless bootstrap and first 10-minute onboarding
-- reproducible offline/online workflow with auditability
-- clear plug-and-play extension points for strategy/model/data/risk/execution
-- compliance-aware logging and privacy defaults
-- backup/restore/migration safety net
+## Core Modules (keep stable)
+- `src/algotradeplan/core`: ids/contracts/types/clock
+- `src/algotradeplan/plugins`: strategy, data, risk, reconciliation, execution interfaces + registry
+- `src/algotradeplan/orchestration`: end-to-end trading flow and real-data autopilot
+- `src/algotradeplan/backtest`: replay and realistic cost modeling
 
-## Scope Covered
-This repository now includes:
-1. Developer ergonomics: VSCode/Copilot, Makefile, pre-commit, bootstrap scripts, example notebook
-2. Tabular data ingestion module for CSV/Excel and rapid experiments
-3. Compliance groundwork: PII-safe logging, privacy/KYC/legal notes
-4. Extensibility layout + plugin guide + fake/mock adapter support
-5. Linter/profiler/debug settings
-6. Backup, restore, migration, and migration validation scripts
-7. Documentation automation (MkDocs + docstring coverage config)
-8. 10-minute onboarding and resilient hello-world flow
-9. Versioning (semver), tagging notes, changelog
-10. Contribution standards + issue/PR templates + maintainer policy
-11. E2E smoke test path for terminal and notebook
-12. Migration/upgrade playbook and validator references
-13. Third-party dependency policy and security/license checks
-14. Dry-run/simulate-live transition flow and teardown script
-
-## Phase Plan (Aşamalar)
-1. Bootstrap and skeleton setup
-2. README + architecture + agents + changelog + pre-commit + make + VSCode/Copilot
-3. Core contracts/types/ids/clock
-4. Test + hello-world pipeline + notebook
-5. Data ingestion (market/alt-data/CSV)
-6. Logging, storage, provenance, backup/restore
-7. Analysis/feature pipeline directories + plug-and-play guide
-8. Model and strategy skeleton modules
-9. Config/secrets/environment switching docs
-10. Observability and debug foundations
-11. Terminal + notebook E2E examples
-12. Risk/execution/state/reconciliation fundamentals
-13. Onboarding and doc automation
-14. Smoke suite + migration + dry-run/simulate/live docs
-15. Contribution, issue/PR policy, extension guidance
-16. Runbook masterlist
-17. Data-first asset/source expansion hardening
-18. Autonomous self-boot real-data pipeline
-
-See `docs/PHASE_STATUS.md` for the detailed per-phase audit with
-`TAMAMLANANLAR`, `YAPILACAKLAR`, and priority blockers.
+## Critical Workflows
+- Terminal smoke: `python scripts/hello_world_e2e.py --mode terminal --dry-run`
+- Notebook smoke: `python scripts/notebook_smoke_check.py`
+- Full phase runner: `python scripts/run_all_phases.py --include-live-smoke`
+- Validation path: `make lint && make test && make smoke && make runbook_check`
 
 ## Quick Start
 ```bash
@@ -58,41 +23,14 @@ make smoke
 make runbook_check
 ```
 
-## Autonomous Real-Data Pipeline
-```bash
-python scripts/run_all_phases.py --include-live-smoke
-# or
-make autopilot
-```
-
-The real-data smoke stage auto-discovers assets and validates market/news/macro
-source coverage while running ingestion -> feature -> optimization -> intent ->
-risk -> portfolio flow. Report output:
-`artifacts/real_data_smoke_report.json`.
-
-## Key Entry Points
-- Master plan: `docs/MASTER_PLAN.md`
-- Phase status snapshot: `docs/PHASE_STATUS.md`
-- Data strategy: `docs/DATA_STRATEGY.md`
-- Architecture: `docs/ARCHITECTURE.md`
-- Agent model and plugin ownership: `docs/AGENTS.md`
-- Governance: `docs/GOVERNANCE.md`
-- Contributor workflow: `CONTRIBUTING.md`
-- Maintainer policy: `MAINTAINERS.md`
-- Documentation index: `docs/README.md`
+## Documentation Map
+- Start here: `docs/README.md`
 - Onboarding: `ONBOARDING.md`, `docs/onboarding_10min.md`
-- Notebook usage: `docs/usage_with_notebooks.md`,
-  `notebooks/algotrade_e2e_demo.ipynb`, `notebooks/real_data_workflow.ipynb`
-- Bootstrap + E2E scripts: `scripts/bootstrap.sh`, `scripts/hello_world_e2e.py`
-- Autonomous pipeline scripts: `scripts/run_all_phases.py`, `scripts/e2e_real_data_smoke.py`
-- Test runner script: `scripts/run_tests.py`
-- Environment and secrets flow: `docs/environment_switching.md`
-- CI workflow: `.github/workflows/ci.yml`
+- Notebook usage: `docs/usage_with_notebooks.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- Plugin extension guide: `docs/extending.md`
+- Operational runbooks: `docs/runbook_masterlist.md`, `docs/runbooks/`
 
-## Tech Discussion (Initial)
-- **Core + orchestration**: Python first, modular monolith structure
-- **Dataframes/experiments**: optional `pandas`, optional `scikit-learn`
-- **Schema/contracts**: `jsonschema` files + Python protocols/dataclasses
-- **Storage**: local JSONL placeholders now, designed for PostgreSQL/object-store later
-- **Observability**: structured logging scaffold with PII redaction hooks
-- **Docs**: MkDocs + pre-commit hooks + docstring coverage checks
+## Notes on Cleanup
+- Duplicate/stale docs are removed when a canonical file already exists.
+- New changes should land in canonical docs, not parallel copies.

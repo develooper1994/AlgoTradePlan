@@ -1,26 +1,29 @@
 # Documentation Index
 
-- `MASTER_PLAN.md`: canonical phased blueprint and decision log
-- `PHASE_RECAP.md`: consolidated summary of prior recommendations and next-phase direction
-- `PHASE_STATUS.md`: current completed/partial/missing phase snapshot and next target order
-- `DATA_STRATEGY.md`: multi-domain ingestion, storage, quality, and provenance strategy
-- `ARCHITECTURE.md`: current architecture diagram and module boundaries
-- `AGENTS.md`: agent contracts, automation policy, and working rules
-- `GOVERNANCE.md`: review, deploy, and change-management rules
-- `extending.md`: canonical plugin extension guide
-- `phases/`: per-phase goals, requirements, validation, and tests
-- `runbooks/`: operational and incident runbook templates/examples
-- `onboarding_10min.md`: first 10-minute path
-- `../ONBOARDING.md`: root onboarding flow tied to phase/runbook checks
-- `quickstart.md`: bootstrap and hello-world flow
-- `usage_with_notebooks.md`: end-to-end notebook execution guide
-- `compliance.md`: privacy/KYC/legal baseline
-- `extensibility.md`: plugin and test adapter guide
-- `production_acceptance.md`: Phase 16 production acceptance evidence
-- `migration_upgrade.md`: migration and upgrade playbook
-- `dependency_policy.md`: third-party package policy
-- `dry_run_simulate_live.md`: dry-run/simulate/live transition
-- `environment_switching.md`: config and secrets environment flow
-- `storage_provenance.md`: storage and provenance scaffold
-- `doc_automation.md`: mkdocs/docstring coverage process
-- `runbook_masterlist.md`: operations checklist
+## Core / Critical Docs
+- `ARCHITECTURE.md`: module boundaries and design
+- `DATA_STRATEGY.md`: ingestion/quality/storage/provenance strategy
+- `extending.md`: plugin contract and extension workflow
+- `runbook_masterlist.md` + `runbooks/`: operational procedures
+- `../ONBOARDING.md`, `onboarding_10min.md`, `usage_with_notebooks.md`: how to run
+
+## Governance / Policy
+- `MASTER_PLAN.md`
+- `PHASE_STATUS.md`
+- `GOVERNANCE.md`
+- `AGENTS.md`
+- `dependency_policy.md`
+- `compliance.md`
+
+## Supporting Docs
+- `quickstart.md`
+- `environment_switching.md`
+- `storage_provenance.md`
+- `migration_upgrade.md`
+- `production_acceptance.md`
+- `dry_run_simulate_live.md`
+- `doc_automation.md`
+
+## Historical / Phase Tracking
+- `PHASE_RECAP.md`
+- `phases/`
