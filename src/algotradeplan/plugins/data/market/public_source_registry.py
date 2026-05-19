@@ -220,10 +220,11 @@ def _yahoo_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         )
 
     meta = result.get("meta", {})
+    last_close = closes[-1] if closes else 0
     return _attach_derived_funding(
         symbol,
         {
-            "tick": [{"symbol": symbol, "price": meta.get("regularMarketPrice", closes[-1] if closes else 0)}],
+            "tick": [{"symbol": symbol, "price": meta.get("regularMarketPrice", last_close)}],
             "kline": klines,
             "trade": [{"symbol": symbol, "source": "yahoo_chart"}] if klines else [],
             "orderbook": [
@@ -312,7 +313,7 @@ def _twelvedata_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
     return _attach_derived_funding(
         symbol,
         {
-            "tick": [{"symbol": symbol, "price": values[0].get("close", "0")}] if values else [],
+            "tick": [{"symbol": symbol, "price": values[0].get("close", "0")}] if values else [{"symbol": symbol, "price": "0"}],
             "kline": klines,
             "trade": [{"symbol": symbol, "source": "twelvedata_time_series"}] if values else [],
             "orderbook": [{"symbol": symbol, "source": "twelvedata"}] if values else [],
