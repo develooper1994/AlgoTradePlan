@@ -11,6 +11,30 @@ phase documents under `docs/phases/` against the canonical roadmap in
 - **Do not advance beyond the active autonomous real-data phase until the Phase
   18 gaps below are closed.**
 
+## Functional Stage Matrix (Incomplete items at top)
+
+- [ ] **Live-source hardening gate (Phase 18 close criteria):** real upstream
+  stability + stronger non-mock evidence is still open.
+- [ ] **Per-source incident runbook evidence:** partial failures are now reported
+  in code, but live operational evidence remains an active gate item.
+- [x] **Plan / phase governance:** `docs/MASTER_PLAN.md`, this status file, and
+  phase docs are aligned.
+- [x] **Pipeline orchestration:** `scripts/run_all_phases.py` and
+  `src/algotradeplan/orchestration/real_data_autopilot.py` exist and run.
+- [x] **Asset discovery:** market provider registry supports Binance, Bybit,
+  Kraken, Coinbase, Yahoo, Alpha Vantage, Twelve Data, Polygon.io, Finnhub,
+  Quandl, and IEX.
+- [x] **Ingestion layer:** quality -> storage -> provenance pipeline is
+  implemented and tested.
+- [x] **Feature extraction:** curated feature view pipeline is implemented and
+  replay-linked to provenance.
+- [x] **Strategy/backtest path:** strategy plugins, backtest/replay harness, and
+  optimization notebook flow exist.
+- [x] **Risk / portfolio chain:** TradeFlow + risk plugin + simulated execution
+  + portfolio snapshot path exists.
+- [x] **E2E/Notebook workflow:** terminal and notebook smoke flows are wired in
+  `make smoke`.
+
 ## Validation Evidence
 
 The repository baseline was re-checked on 2026-05-19 with:
@@ -286,12 +310,14 @@ All four commands exited successfully before this audit was finalized.
   - Real-data smoke script exists and writes an artifact report.
   - Notebook path and notebook guide exist.
   - Unit tests cover mocked happy/failure autopilot paths.
+  - Partial-source failures (including non-market news/macro sources) are
+    recorded in `source_issues` and covered by unit tests.
 - **Remaining / YAPILACAKLAR**
   - **New code:** source discovery/fetch logic is now registry-based under
     `src/algotradeplan/plugins/data/market/public_source_registry.py`; keep
     extending new providers there instead of editing autopilot control flow.
-  - **New tests:** add stronger validation for partial-source failures, per-source
-    error reporting, and real API contract drift coverage.
+  - **New tests:** continue expanding real API contract drift coverage and
+    provider-specific outage scenarios.
   - **New docs/runbook:** document what qualifies as acceptable live-smoke
     evidence and what to do when one provider is down.
   - **New plugin/data-ingestion work:** market provider inventory now includes
