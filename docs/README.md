@@ -1,5 +1,9 @@
 # Documentation Index
 
+Canonical project documentation now lives under `docs/` plus the root
+`README.md` and `ONBOARDING.md`. Directory-level README stubs outside this area
+have been removed to keep the repo smaller and easier to scan.
+
 ## Core / Critical Docs
 - `ARCHITECTURE.md`: module boundaries and design
 - `DATA_STRATEGY.md`: ingestion/quality/storage/provenance strategy

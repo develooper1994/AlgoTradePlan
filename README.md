@@ -34,3 +34,5 @@ make runbook_check
 ## Notes on Cleanup
 - Duplicate/stale docs are removed when a canonical file already exists.
 - New changes should land in canonical docs, not parallel copies.
+- Repo-facing documentation is intentionally concentrated in `docs/` plus this file
+  and `ONBOARDING.md`.
