@@ -31,6 +31,7 @@
 - trade flow orchestrator: `/src/algotradeplan/orchestration/trade_flow.py`
 - replay harness: `/src/algotradeplan/backtest/replay.py`
 - drift reconciler: `/src/algotradeplan/plugins/reconciliation/drift_reconciler.py`
+- dynamic auto-register loader: `/src/algotradeplan/plugins/registry.py`
 
 ## Test and Migration Guidance
 - tests should cover successful ingestion and failed quality validation
