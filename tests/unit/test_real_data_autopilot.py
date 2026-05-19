@@ -64,6 +64,74 @@ def _fake_getter(url: str, params: dict[str, object]):
     if url.endswith("/v5/market/funding/history"):
         return {"result": {"list": [{"fundingRate": "0.0002"}]}}
 
+    if url.endswith("/0/public/AssetPairs"):
+        return {
+            "result": {
+                "XXBTZUSD": {"wsname": "XBT/USD"},
+                "XETHZUSD": {"wsname": "ETH/USD"},
+            }
+        }
+    if url.endswith("/0/public/Ticker"):
+        return {"result": {str(params.get("pair", "XXBTZUSD")): {"c": ["105", "1"]}}}
+    if url.endswith("/0/public/OHLC"):
+        pair = str(params.get("pair", "XXBTZUSD"))
+        return {"result": {pair: _klines()}}
+    if url.endswith("/0/public/Trades"):
+        pair = str(params.get("pair", "XXBTZUSD"))
+        return {"result": {pair: [{"price": "105"}]}}
+    if url.endswith("/0/public/Depth"):
+        pair = str(params.get("pair", "XXBTZUSD"))
+        return {"result": {pair: {"bids": [["100", "1"]], "asks": [["101", "1"]]}}}
+
+    if url.endswith("/products"):
+        return [
+            {
+                "id": "BTC-USD",
+                "quote_currency": "USD",
+                "status": "online",
+                "trading_disabled": False,
+            },
+            {
+                "id": "ETH-USD",
+                "quote_currency": "USD",
+                "status": "online",
+                "trading_disabled": False,
+            },
+        ]
+    if "/products/" in url and url.endswith("/ticker"):
+        return {"price": "105", "product_id": "BTC-USD"}
+    if "/products/" in url and url.endswith("/candles"):
+        return _klines()
+    if "/products/" in url and url.endswith("/trades"):
+        return [{"trade_id": 1}]
+    if "/products/" in url and url.endswith("/book"):
+        return {"bids": [["100", "1"]], "asks": [["101", "1"]]}
+
+    if url.endswith("/v1/finance/search"):
+        return {"quotes": [{"symbol": "BTC-USD"}, {"symbol": "ETH-USD"}]}
+    if "/v8/finance/chart/" in url:
+        candles = _klines()
+        return {
+            "chart": {
+                "result": [
+                    {
+                        "timestamp": [int(row[0] / 1000) for row in candles],
+                        "indicators": {
+                            "quote": [
+                                {
+                                    "open": [float(row[1]) for row in candles],
+                                    "high": [float(row[2]) for row in candles],
+                                    "low": [float(row[3]) for row in candles],
+                                    "close": [float(row[4]) for row in candles],
+                                }
+                            ]
+                        },
+                        "meta": {"regularMarketPrice": 105.0, "bid": 104.9, "ask": 105.1},
+                    }
+                ]
+            }
+        }
+
     if url.endswith("/api/v1/search"):
         query = str(params.get("query", "")).lower()
         if query == "bitcoin":
@@ -88,14 +156,20 @@ class RealDataAutopilotTest(unittest.TestCase):
                 json_getter=_fake_getter,
             )
 
-            self.assertEqual(len(report.market_sources), 2)
+            self.assertGreaterEqual(len(report.market_sources), 5)
             self.assertGreater(report.news_story_count, 0)
             self.assertGreater(report.macro_series_count, 0)
+            self.assertIn("source_issue_count", report.metrics)
+            self.assertIn("binance_futures", report.source_inventory)
+            self.assertIn("coinbase_spot", report.source_inventory)
+            self.assertIn("yahoo_unofficial", report.source_inventory)
             self.assertIn(report.intent["action"], {"buy", "sell", "hold"})
             self.assertTrue(report.risk_decision["approved"])
             self.assertIn("market_symbols_total", report.metrics)
             stored = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(stored["market_sources"][0]["source"], "binance_futures")
+            self.assertIn("source_issues", stored)
+            self.assertIn("source_inventory", stored)
 
     def test_missing_dataset_coverage_raises(self) -> None:
         def fake_getter_missing(url: str, params: dict[str, object]):

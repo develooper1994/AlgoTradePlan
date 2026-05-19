@@ -34,6 +34,8 @@ def main() -> None:
     print(
         "real_data_smoke_ok "
         f"market_sources={len(report.market_sources)} "
+        f"source_inventory={len(report.source_inventory)} "
+        f"source_issues={len(report.source_issues)} "
         f"news_story_count={report.news_story_count} "
         f"macro_series_count={report.macro_series_count} "
         f"signal={report.intent.get('action')}"

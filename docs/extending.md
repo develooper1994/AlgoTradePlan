@@ -23,6 +23,7 @@
 
 ## Example Extension
 - market example: `/src/algotradeplan/plugins/data/market/example_market_source.py`
+- production market source registry: `/src/algotradeplan/plugins/data/market/public_source_registry.py`
 - news example: `/src/algotradeplan/plugins/data/news/example_news_source.py`
 - macro example: `/src/algotradeplan/plugins/data/macro/example_macro_source.py`
 - curated feature view: `/src/algotradeplan/plugins/data/curated/feature_view.py`

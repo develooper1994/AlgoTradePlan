@@ -287,16 +287,17 @@ All four commands exited successfully before this audit was finalized.
   - Notebook path and notebook guide exist.
   - Unit tests cover mocked happy/failure autopilot paths.
 - **Remaining / YAPILACAKLAR**
-  - **New code:** extract hard-coded source discovery/fetch logic into plugin or
-    registry-based adapters so new sources do not require editing the autopilot
-    file.
+  - **New code:** source discovery/fetch logic is now registry-based under
+    `src/algotradeplan/plugins/data/market/public_source_registry.py`; keep
+    extending new providers there instead of editing autopilot control flow.
   - **New tests:** add stronger validation for partial-source failures, per-source
     error reporting, and real API contract drift coverage.
   - **New docs/runbook:** document what qualifies as acceptable live-smoke
     evidence and what to do when one provider is down.
-  - **New plugin/data-ingestion work:** expand discovery beyond the current
-    Binance/Bybit/Hacker News/Frankfurter set only after the current live path is
-    properly hardened.
+  - **New plugin/data-ingestion work:** market provider inventory now includes
+    Binance, Bybit, Kraken, Coinbase, Yahoo, Alpha Vantage, Twelve Data,
+    Polygon.io, Finnhub, Quandl, and IEX Cloud; continue hardening API-key
+    providers with live evidence and runbook support.
   - **Gate condition:** Phase 18 should be marked complete only when live-data
     execution evidence is no longer dependent on mocked tests alone.
 
