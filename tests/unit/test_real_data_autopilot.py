@@ -187,6 +187,41 @@ class RealDataAutopilotTest(unittest.TestCase):
                     json_getter=fake_getter_missing,
                 )
 
+    def test_allow_partial_records_news_and_macro_issues(self) -> None:
+        def fake_getter_partial(url: str, params: dict[str, object]):
+            if url.endswith("/api/v1/search") or url.endswith("/v1/currencies"):
+                raise RuntimeError("upstream down")
+            return _fake_getter(url, params)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            report = run_real_data_autopilot(
+                report_path=Path(tmp_dir) / "report.json",
+                max_symbols_per_source=2,
+                allow_partial=True,
+                json_getter=fake_getter_partial,
+            )
+
+            sources = {issue["source"] for issue in report.source_issues}
+            self.assertIn("hacker_news", sources)
+            self.assertIn("frankfurter", sources)
+            self.assertEqual(report.news_story_count, 0)
+            self.assertEqual(report.macro_series_count, 0)
+
+    def test_news_failure_raises_without_partial(self) -> None:
+        def fake_getter_news_failure(url: str, params: dict[str, object]):
+            if url.endswith("/api/v1/search"):
+                raise RuntimeError("news unavailable")
+            return _fake_getter(url, params)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(RealDataSmokeError, "news source failure"):
+                run_real_data_autopilot(
+                    report_path=Path(tmp_dir) / "report.json",
+                    max_symbols_per_source=2,
+                    allow_partial=False,
+                    json_getter=fake_getter_news_failure,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

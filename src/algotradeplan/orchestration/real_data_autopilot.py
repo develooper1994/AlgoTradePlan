@@ -307,17 +307,29 @@ def run_real_data_autopilot(
         market_agent=market_agent,
     )
 
-    news_assets = _discover_news_assets(get_json, max_symbols_per_source)
-    news_rows = _fetch_news(get_json, news_assets[0])
-    if not news_rows and not allow_partial:
-        raise RealDataSmokeError("news source returned no stories")
+    news_rows: list[dict[str, Any]] = []
+    try:
+        news_assets = _discover_news_assets(get_json, max_symbols_per_source)
+        news_rows = _fetch_news(get_json, news_assets[0])
+        if not news_rows and not allow_partial:
+            raise RealDataSmokeError("news source returned no stories")
+    except Exception as exc:
+        source_issues.append({"source": "hacker_news", "reason": str(exc)})
+        if not allow_partial:
+            raise RealDataSmokeError(f"news source failure: {exc}") from exc
 
-    macro_series = _discover_macro_series(get_json, max_symbols_per_source)
-    if not macro_series:
-        raise RealDataSmokeError("macro source returned no series")
-    macro_snapshot = _fetch_macro_snapshot(get_json, macro_series[0])
-    if not macro_snapshot.get("rates") and not allow_partial:
-        raise RealDataSmokeError("macro source returned no rates")
+    macro_snapshot: dict[str, Any] = {"rates": {}}
+    try:
+        macro_series = _discover_macro_series(get_json, max_symbols_per_source)
+        if not macro_series:
+            raise RealDataSmokeError("macro source returned no series")
+        macro_snapshot = _fetch_macro_snapshot(get_json, macro_series[0])
+        if not macro_snapshot.get("rates") and not allow_partial:
+            raise RealDataSmokeError("macro source returned no rates")
+    except Exception as exc:
+        source_issues.append({"source": "frankfurter", "reason": str(exc)})
+        if not allow_partial:
+            raise RealDataSmokeError(f"macro source failure: {exc}") from exc
 
     market_records: list[DataRecord] = []
     for coverage in source_coverages:
