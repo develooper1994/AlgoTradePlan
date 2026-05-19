@@ -22,9 +22,11 @@ from src.algotradeplan.plugins.data.curated.feature_view import ExampleFeatureVi
 from src.algotradeplan.plugins.data.example_data_storage import InMemoryDataStoragePlugin
 from src.algotradeplan.plugins.data.example_provenance import ExampleProvenancePlugin
 from src.algotradeplan.plugins.data.example_quality_check import RequiredFieldsQualityPlugin
-from src.algotradeplan.plugins.data.market.ccxt_market_source import (
+from src.algotradeplan.plugins.data.market import (
     CcxtDependencyError,
     CcxtMarketDataAgent,
+    build_market_source_registry,
+    collect_market_source_data,
 )
 from src.algotradeplan.plugins.data.market.static_market_batch_source import (
     StaticMarketBatchSourcePlugin,
@@ -39,6 +41,15 @@ JsonGetter = Callable[[str, dict[str, Any]], Any]
 _ALLOWED_API_PREFIXES = (
     "https://fapi.binance.com/",
     "https://api.bybit.com/",
+    "https://api.kraken.com/",
+    "https://api.exchange.coinbase.com/",
+    "https://query1.finance.yahoo.com/",
+    "https://www.alphavantage.co/",
+    "https://api.twelvedata.com/",
+    "https://api.polygon.io/",
+    "https://finnhub.io/",
+    "https://data.nasdaq.com/",
+    "https://cloud.iexapis.com/",
     "https://hn.algolia.com/",
     "https://api.frankfurter.dev/",
 )
@@ -64,6 +75,8 @@ class SourceCoverage:
 class PipelineReport:
     generated_at: str
     market_sources: list[SourceCoverage]
+    source_issues: list[dict[str, str]]
+    source_inventory: list[str]
     news_story_count: int
     macro_series_count: int
     feature_count: int
@@ -123,80 +136,6 @@ def _default_json_getter(url: str, params: dict[str, Any]) -> Any:
         raise RealDataSmokeError(f"Invalid JSON from {request_url}: {exc}") from exc
 
 
-def _discover_binance_symbols(get_json: JsonGetter, max_symbols: int) -> list[str]:
-    payload = get_json("https://fapi.binance.com/fapi/v1/exchangeInfo", {})
-    symbols = [
-        item["symbol"]
-        for item in payload.get("symbols", [])
-        if item.get("status") == "TRADING" and item.get("quoteAsset") in {"USDT", "USD"}
-    ]
-    return symbols[:max_symbols]
-
-
-def _fetch_binance_datasets(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
-    return {
-        "tick": [get_json("https://fapi.binance.com/fapi/v1/ticker/price", {"symbol": symbol})],
-        "kline": get_json(
-            "https://fapi.binance.com/fapi/v1/klines",
-            {"symbol": symbol, "interval": "1m", "limit": 180},
-        ),
-        "trade": get_json("https://fapi.binance.com/fapi/v1/trades", {"symbol": symbol, "limit": 25}),
-        "orderbook": [
-            get_json("https://fapi.binance.com/fapi/v1/depth", {"symbol": symbol, "limit": 10})
-        ],
-        "funding": get_json(
-            "https://fapi.binance.com/fapi/v1/fundingRate", {"symbol": symbol, "limit": 5}
-        ),
-    }
-
-
-def _discover_bybit_symbols(get_json: JsonGetter, max_symbols: int) -> list[str]:
-    payload = get_json("https://api.bybit.com/v5/market/instruments-info", {"category": "linear"})
-    items = payload.get("result", {}).get("list", [])
-    symbols = [
-        item["symbol"]
-        for item in items
-        if item.get("status") == "Trading" and item.get("quoteCoin") in {"USDT", "USDC", "USD"}
-    ]
-    return symbols[:max_symbols]
-
-
-def _fetch_bybit_datasets(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
-    return {
-        "tick": get_json(
-            "https://api.bybit.com/v5/market/tickers",
-            {"category": "linear", "symbol": symbol},
-        )
-        .get("result", {})
-        .get("list", []),
-        "kline": get_json(
-            "https://api.bybit.com/v5/market/kline",
-            {"category": "linear", "symbol": symbol, "interval": 1, "limit": 180},
-        )
-        .get("result", {})
-        .get("list", []),
-        "trade": get_json(
-            "https://api.bybit.com/v5/market/recent-trade",
-            {"category": "linear", "symbol": symbol, "limit": 25},
-        )
-        .get("result", {})
-        .get("list", []),
-        "orderbook": [
-            get_json(
-                "https://api.bybit.com/v5/market/orderbook",
-                {"category": "linear", "symbol": symbol, "limit": 10},
-            )
-            .get("result", {})
-        ],
-        "funding": get_json(
-            "https://api.bybit.com/v5/market/funding/history",
-            {"category": "linear", "symbol": symbol, "limit": 5},
-        )
-        .get("result", {})
-        .get("list", []),
-    }
-
-
 def _discover_news_assets(get_json: JsonGetter, max_assets: int) -> list[str]:
     payload = get_json("https://hn.algolia.com/api/v1/search", {"query": "bitcoin", "tags": "story"})
     assets: list[str] = []
@@ -231,7 +170,7 @@ def _fetch_macro_snapshot(get_json: JsonGetter, base_currency: str) -> dict[str,
 
 def _select_preferred_asset(symbols: list[str]) -> str:
     for symbol in symbols:
-        if "BTC" in symbol.upper():
+        if "BTC" in symbol.upper() or "XBT" in symbol.upper():
             return symbol
     return symbols[0]
 
@@ -276,52 +215,57 @@ def _collect_market_sources(
     allow_partial: bool,
     json_getter: JsonGetter | None,
     market_agent: CcxtMarketDataAgent | None,
-) -> tuple[list[SourceCoverage], dict[str, dict[str, Any]]]:
+) -> tuple[list[SourceCoverage], dict[str, dict[str, Any]], list[dict[str, str]]]:
     source_coverages: list[SourceCoverage] = []
     datasets_by_source: dict[str, dict[str, Any]] = {}
+    source_issues: list[dict[str, str]] = []
 
     if json_getter:
-        binance_symbols = _discover_binance_symbols(json_getter, max_symbols_per_source)
-        if not binance_symbols:
-            raise RealDataSmokeError("binance discovery returned no symbols")
-        binance_asset = _select_preferred_asset(binance_symbols)
-        binance_data = _fetch_binance_datasets(json_getter, binance_asset)
-        binance_sizes = _require_dataset_coverage("binance", binance_data, allow_partial)
-        source_coverages.append(
-            SourceCoverage(
-                source="binance_futures",
-                asset_count=len(binance_symbols),
-                selected_asset=binance_asset,
-                datasets=binance_sizes,
+        try:
+            results, issues = collect_market_source_data(
+                get_json=json_getter,
+                max_symbols=max_symbols_per_source,
+                allow_partial=allow_partial,
             )
-        )
-        datasets_by_source["binance_futures"] = binance_data
+        except Exception as exc:
+            raise RealDataSmokeError(str(exc)) from exc
 
-        bybit_symbols = _discover_bybit_symbols(json_getter, max_symbols_per_source)
-        if not bybit_symbols:
-            raise RealDataSmokeError("bybit discovery returned no symbols")
-        bybit_asset = _select_preferred_asset(bybit_symbols)
-        bybit_data = _fetch_bybit_datasets(json_getter, bybit_asset)
-        bybit_sizes = _require_dataset_coverage("bybit", bybit_data, allow_partial)
-        source_coverages.append(
-            SourceCoverage(
-                source="bybit_linear",
-                asset_count=len(bybit_symbols),
-                selected_asset=bybit_asset,
-                datasets=bybit_sizes,
+        for issue in issues:
+            source_issues.append({"source": issue.source, "reason": issue.reason})
+
+        for item in results:
+            sizes = _require_dataset_coverage(item.source, item.datasets, allow_partial)
+            source_coverages.append(
+                SourceCoverage(
+                    source=item.source,
+                    asset_count=item.asset_count,
+                    selected_asset=item.selected_asset,
+                    datasets=sizes,
+                )
             )
-        )
-        datasets_by_source["bybit_linear"] = bybit_data
-        return source_coverages, datasets_by_source
+            datasets_by_source[item.source] = item.datasets
+
+        if not source_coverages:
+            raise RealDataSmokeError("no market source coverage available")
+        return source_coverages, datasets_by_source, source_issues
 
     agent = market_agent or CcxtMarketDataAgent()
-    for exchange_id, source_name in (("binanceusdm", "binance_futures"), ("bybit", "bybit_linear")):
+    ccxt_sources = (
+        ("binanceusdm", "binance_futures"),
+        ("bybit", "bybit_linear"),
+        ("kraken", "kraken_spot"),
+        ("coinbase", "coinbase_spot"),
+    )
+    for exchange_id, source_name in ccxt_sources:
         try:
             symbols = agent.discover_assets(exchange_id, max_symbols_per_source)
             if not symbols:
                 raise RealDataSmokeError(f"{exchange_id} discovery returned no symbols")
             selected_asset = _select_preferred_asset(symbols)
             datasets = agent.fetch_exchange_datasets(exchange_id, selected_asset)
+            if source_name in {"kraken_spot", "coinbase_spot"} and not datasets.get("funding"):
+                datasets = dict(datasets)
+                datasets["funding"] = [{"symbol": selected_asset, "rate": 0.0, "derived": True}]
             sizes = _require_dataset_coverage(source_name, datasets, allow_partial)
             source_coverages.append(
                 SourceCoverage(
@@ -335,12 +279,13 @@ def _collect_market_sources(
         except CcxtDependencyError as exc:
             raise RealDataSmokeError(str(exc)) from exc
         except Exception as exc:
+            source_issues.append({"source": source_name, "reason": str(exc)})
             if allow_partial:
                 continue
             raise RealDataSmokeError(str(exc)) from exc
     if not source_coverages:
         raise RealDataSmokeError("no market source coverage available")
-    return source_coverages, datasets_by_source
+    return source_coverages, datasets_by_source, source_issues
 
 
 def run_real_data_autopilot(
@@ -355,7 +300,7 @@ def run_real_data_autopilot(
     logger = StructuredLogger(correlation_id=f"real-smoke-{datetime.now(UTC).timestamp()}")
     metrics = InMemoryMetricsSink()
 
-    source_coverages, datasets_by_source = _collect_market_sources(
+    source_coverages, datasets_by_source, source_issues = _collect_market_sources(
         max_symbols_per_source=max_symbols_per_source,
         allow_partial=allow_partial,
         json_getter=json_getter,
@@ -439,6 +384,7 @@ def run_real_data_autopilot(
 
     for coverage in source_coverages:
         metrics.record("market_symbols_discovered", coverage.asset_count, source=coverage.source)
+    metrics.record("source_issues", len(source_issues), source="market_registry")
     metrics.record("news_stories", len(news_rows), source="hn")
     metrics.record("macro_rates", len(macro_snapshot.get("rates", {})), source="frankfurter")
     metrics.record("feature_rows", len(feature_result.feature_records), source="feature")
@@ -447,14 +393,18 @@ def run_real_data_autopilot(
     logger.info(
         "real_data_autopilot_completed",
         market_sources=[coverage.source for coverage in source_coverages],
+        source_issues=source_issues,
         selected_symbol=selected_coverage.selected_asset,
         signal=action,
         approved=flow_result.risk_decision.get("approved"),
     )
 
+    source_inventory = [adapter.source for adapter in build_market_source_registry()]
     report = PipelineReport(
         generated_at=datetime.now(UTC).isoformat(),
         market_sources=source_coverages,
+        source_issues=source_issues,
+        source_inventory=source_inventory,
         news_story_count=len(news_rows),
         macro_series_count=len(macro_snapshot.get("rates", {})),
         feature_count=len(feature_result.feature_records),
@@ -463,6 +413,7 @@ def run_real_data_autopilot(
         portfolio=portfolio_snapshot,
         metrics={
                 "market_symbols_total": metrics.total("market_symbols_discovered"),
+                "source_issue_count": metrics.total("source_issues"),
                 "news_stories": metrics.total("news_stories"),
                 "macro_rates": metrics.total("macro_rates"),
                 "feature_rows": metrics.total("feature_rows"),
@@ -484,6 +435,8 @@ def run_real_data_autopilot(
                     }
                     for item in report.market_sources
                 ],
+                "source_issues": report.source_issues,
+                "source_inventory": report.source_inventory,
                 "news_story_count": report.news_story_count,
                 "macro_series_count": report.macro_series_count,
                 "feature_count": report.feature_count,
