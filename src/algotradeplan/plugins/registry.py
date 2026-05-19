@@ -51,7 +51,7 @@ def discover_plugins(
         module_parts = module_name.split(".")
         try:
             module = import_module(module_name)
-        except Exception as exc:  # pragma: no cover - importability depends on optional extras
+        except ImportError as exc:  # pragma: no cover - importability depends on optional extras
             issues.append(PluginDiscoveryIssue(module=module_name, reason=str(exc)))
             continue
 
@@ -93,6 +93,10 @@ def _cached_discovery_result(
 def discovery_issues(root_package: str = "src.algotradeplan.plugins") -> list[PluginDiscoveryIssue]:
     _, issues = _cached_discovery_result(root_package)
     return list(issues)
+
+
+def clear_discovery_cache() -> None:
+    _cached_discovery_result.cache_clear()
 
 
 def load_plugin_class(

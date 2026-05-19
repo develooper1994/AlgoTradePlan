@@ -5,8 +5,15 @@ import sys
 import tempfile
 from pathlib import Path
 import unittest
+from unittest import mock
 
-from src.algotradeplan.plugins.registry import discovery_issues, discover_plugins, load_plugin_class
+from src.algotradeplan.plugins import registry as plugin_registry
+from src.algotradeplan.plugins.registry import (
+    clear_discovery_cache,
+    discovery_issues,
+    discover_plugins,
+    load_plugin_class,
+)
 
 
 class PluginRegistryTest(unittest.TestCase):
@@ -29,6 +36,16 @@ class PluginRegistryTest(unittest.TestCase):
         self.assertEqual(registry["notional_guard_risk"].category, "risk")
         self.assertEqual(registry["simulated_fill_connector"].category, "execution_connector")
         self.assertEqual(registry["drift_detecting_reconciler"].category, "reconciliation")
+        strategy_descriptor = registry["ema_cross_atr_stop_strategy"]
+        self.assertEqual(
+            strategy_descriptor.module,
+            "src.algotradeplan.plugins.strategies.ema_cross_atr_stop",
+        )
+        self.assertEqual(
+            strategy_descriptor.qualname,
+            "src.algotradeplan.plugins.strategies.ema_cross_atr_stop.EmaCrossAtrStopStrategyPlugin",
+        )
+        self.assertEqual(strategy_descriptor.class_name, "EmaCrossAtrStopStrategyPlugin")
 
     def test_dynamic_loader_returns_plugin_class(self) -> None:
         plugin_cls = load_plugin_class("ema_cross_atr_stop_strategy")
@@ -42,6 +59,16 @@ class PluginRegistryTest(unittest.TestCase):
 
     def test_discovery_issues_api_returns_list(self) -> None:
         self.assertIsInstance(discovery_issues(), list)
+
+    def test_dynamic_loader_uses_cached_discovery(self) -> None:
+        clear_discovery_cache()
+        with mock.patch(
+            "src.algotradeplan.plugins.registry.discover_plugins",
+            wraps=plugin_registry.discover_plugins,
+        ) as wrapped:
+            load_plugin_class("ema_cross_atr_stop_strategy")
+            load_plugin_class("notional_guard_risk")
+            self.assertEqual(wrapped.call_count, 1)
 
     def test_duplicate_plugin_ids_raise_value_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
