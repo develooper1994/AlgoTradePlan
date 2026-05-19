@@ -16,3 +16,6 @@
 - reconciliation checks
 - smoke suite before deploy
 - rollback/restore steps
+
+Validation command:
+- `make runbook_check`

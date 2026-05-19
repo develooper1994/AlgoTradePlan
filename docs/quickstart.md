@@ -3,8 +3,10 @@
 ## Terminal
 ```bash
 bash scripts/bootstrap.sh
-python scripts/run_tests.py
+make lint
+make test
 python scripts/hello_world_e2e.py --mode terminal --dry-run
+make runbook_check
 ```
 
 ## Notebook
