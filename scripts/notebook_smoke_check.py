@@ -10,7 +10,7 @@ def _load_notebook(path: Path) -> dict[str, object]:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:  # pragma: no cover - CLI smoke guard
-        raise SystemExit(f"missing notebook: {path}") from exc
+        raise SystemExit(f"Notebook not found at {path}.") from exc
 
 
 def _joined_sources(cells: list[dict[str, object]], cell_type: str) -> str:
@@ -32,17 +32,17 @@ def main() -> None:
     notebook = _load_notebook(notebook_path)
     cells = notebook.get("cells")
     if not isinstance(cells, list) or not cells:
-        raise SystemExit("notebook has no cells")
+        raise SystemExit("Notebook validation failed: No cells found in notebook structure.")
 
     markdown_text = _joined_sources(cells, "markdown")
     code_text = _joined_sources(cells, "code")
 
     required_markdown = [
-        "Ortam kurulumu",
+        "Environment setup",
         "Data/asset discovery",
         "Feature engineering",
         "signal -> intent -> risk -> portfolio",
-        "Tüm portföy",
+        "Portfolio-wide run",
     ]
     required_code_tokens = [
         "discover_assets(",
@@ -52,12 +52,12 @@ def main() -> None:
         "PortfolioManager",
     ]
 
-    missing_markdown = [token for token in required_markdown if token not in markdown_text]
-    missing_code = [token for token in required_code_tokens if token not in code_text]
-    if missing_markdown or missing_code:
+    missing_markdown_sections = [token for token in required_markdown if token not in markdown_text]
+    missing_code_tokens = [token for token in required_code_tokens if token not in code_text]
+    if missing_markdown_sections or missing_code_tokens:
         raise SystemExit(
             "notebook missing required coverage: "
-            f"markdown={missing_markdown} code={missing_code}"
+            f"markdown={missing_markdown_sections} code={missing_code_tokens}"
         )
 
     docs_path = repo_root / "docs" / "usage_with_notebooks.md"
