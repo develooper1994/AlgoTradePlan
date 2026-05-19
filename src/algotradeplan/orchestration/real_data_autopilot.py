@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import ssl
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -12,27 +12,20 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from src.algotradeplan.data import DataHub
+from src.algotradeplan.data.provenance import provenance_to_dict
 from src.algotradeplan.observability import InMemoryMetricsSink, StructuredLogger
 from src.algotradeplan.orchestration.trade_flow import TradeFlow
 from src.algotradeplan.plugins.connectors.simulated_fill_connector import (
     SimulatedFillExecutionConnectorPlugin,
 )
-from src.algotradeplan.plugins.data.contracts import DataRecord, DataRequest
-from src.algotradeplan.plugins.data.curated.feature_view import ExampleFeatureViewPlugin
-from src.algotradeplan.plugins.data.example_data_storage import InMemoryDataStoragePlugin
-from src.algotradeplan.plugins.data.example_provenance import ExampleProvenancePlugin
-from src.algotradeplan.plugins.data.example_quality_check import RequiredFieldsQualityPlugin
 from src.algotradeplan.plugins.data.market import (
     CcxtDependencyError,
     CcxtMarketDataAgent,
     build_market_source_registry,
     collect_market_source_data,
 )
-from src.algotradeplan.plugins.data.market.static_market_batch_source import (
-    StaticMarketBatchSourcePlugin,
-)
-from src.algotradeplan.plugins.data.pipeline import DataIngestionPipeline
-from src.algotradeplan.plugins.risk.notional_guard import NotionalGuardRiskPlugin
+from src.algotradeplan.plugins.risk.engine import RiskEngine
 from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import (
     EmaCrossAtrStopStrategyPlugin,
 )
@@ -57,7 +50,6 @@ _ALLOWED_API_PREFIXES = (
 DEFAULT_ORDER_QUANTITY = 0.01
 DEFAULT_MAX_NOTIONAL = 1_000.0
 DEFAULT_STARTING_CASH = 10_000.0
-MIN_KLINE_FIELD_COUNT = 5
 
 
 class RealDataSmokeError(RuntimeError):
@@ -76,14 +68,22 @@ class SourceCoverage:
 class PipelineReport:
     generated_at: str
     market_sources: list[SourceCoverage]
+    coverage_table: list[dict[str, str]]
     source_issues: list[dict[str, str]]
     source_inventory: list[str]
     news_story_count: int
     macro_series_count: int
     feature_count: int
+    dataset_coverage: dict[str, int]
+    data_quality: dict[str, Any]
+    provenance_manifest: dict[str, Any]
+    normalized_record_count: int
+    signal: dict[str, Any]
     intent: dict[str, Any]
     risk_decision: dict[str, Any]
+    execution_fill: dict[str, Any]
     portfolio: dict[str, Any]
+    ledger: list[dict[str, Any]]
     metrics: dict[str, float]
     backtest: dict[str, Any] = field(default_factory=dict)
 
@@ -157,32 +157,6 @@ def _require_dataset_coverage(source: str, datasets: dict[str, Any], allow_parti
     return sizes
 
 
-def _records_from_klines(symbol: str, source: str, klines: list[list[Any]]) -> list[DataRecord]:
-    records: list[DataRecord] = []
-    for row in klines:
-        if len(row) < MIN_KLINE_FIELD_COUNT:
-            continue
-        open_time_ms = int(row[0])
-        records.append(
-            DataRecord(
-                key=f"{symbol}-kline-{open_time_ms}",
-                observed_at=datetime.fromtimestamp(open_time_ms / 1000, tz=UTC).isoformat(),
-                domain="market",
-                source=source,
-                asset_type="perpetual",
-                payload={
-                    "symbol": symbol,
-                    "open": float(row[1]),
-                    "high": float(row[2]),
-                    "low": float(row[3]),
-                    "close": float(row[4]),
-                },
-                metadata={"join_key": symbol, "dataset": "kline", "lake_zone": "raw"},
-            )
-        )
-    return records
-
-
 def _collect_market_sources(
     *,
     max_symbols_per_source: int,
@@ -230,33 +204,78 @@ def _collect_market_sources(
         ("kraken", "kraken_spot"),
         ("coinbase", "coinbase_spot"),
     )
-    for exchange_id, source_name in ccxt_sources:
-        try:
-            symbols = agent.discover_assets(exchange_id, max_symbols_per_source)
-            if not symbols:
-                raise RealDataSmokeError(f"{exchange_id} discovery returned no symbols")
-            selected_asset = _select_preferred_asset(symbols)
-            datasets = agent.fetch_exchange_datasets(exchange_id, selected_asset)
-            if source_name in {"kraken_spot", "coinbase_spot"} and not datasets.get("funding"):
-                datasets = dict(datasets)
-                datasets["funding"] = [{"symbol": selected_asset, "rate": 0.0, "derived": True}]
-            sizes = _require_dataset_coverage(source_name, datasets, allow_partial)
+    try:
+        for exchange_id, source_name in ccxt_sources:
+            try:
+                symbols = agent.discover_assets(exchange_id, max_symbols_per_source)
+                if not symbols:
+                    raise RealDataSmokeError(f"{exchange_id} discovery returned no symbols")
+                selected_asset = _select_preferred_asset(symbols)
+                datasets = agent.fetch_exchange_datasets(exchange_id, selected_asset)
+                if source_name in {"kraken_spot", "coinbase_spot"} and not datasets.get("funding"):
+                    datasets = dict(datasets)
+                    datasets["funding"] = [{"symbol": selected_asset, "rate": 0.0, "derived": True}]
+                sizes = _require_dataset_coverage(source_name, datasets, allow_partial)
+                source_coverages.append(
+                    SourceCoverage(
+                        source=source_name,
+                        asset_count=len(symbols),
+                        selected_asset=selected_asset,
+                        datasets=sizes,
+                    )
+                )
+                datasets_by_source[source_name] = datasets
+            except Exception as exc:
+                source_issues.append({"source": source_name, "reason": str(exc)})
+                if allow_partial:
+                    continue
+                raise RealDataSmokeError(str(exc)) from exc
+    except CcxtDependencyError:
+        results, issues = collect_market_source_data(
+            get_json=_default_json_getter,
+            max_symbols=max_symbols_per_source,
+            allow_partial=allow_partial,
+        )
+        source_issues.extend({"source": issue.source, "reason": issue.reason} for issue in issues)
+        for item in results:
+            sizes = _require_dataset_coverage(item.source, item.datasets, allow_partial)
             source_coverages.append(
                 SourceCoverage(
-                    source=source_name,
-                    asset_count=len(symbols),
-                    selected_asset=selected_asset,
+                    source=item.source,
+                    asset_count=item.asset_count,
+                    selected_asset=item.selected_asset,
                     datasets=sizes,
                 )
             )
-            datasets_by_source[source_name] = datasets
-        except CcxtDependencyError as exc:
-            raise RealDataSmokeError(str(exc)) from exc
-        except Exception as exc:
-            source_issues.append({"source": source_name, "reason": str(exc)})
-            if allow_partial:
-                continue
-            raise RealDataSmokeError(str(exc)) from exc
+            datasets_by_source[item.source] = item.datasets
+    if not source_coverages and allow_partial:
+        offline_symbol = "BTCUSDT"
+        offline_klines = [
+            [1_700_000_000_000 + (index * 60_000), "100", "101", "99", str(100 + index * 0.2), "10"]
+            for index in range(120)
+        ]
+        offline_datasets = {
+            "tick": [{"symbol": offline_symbol, "price": "123.45"}],
+            "kline": offline_klines,
+            "trade": [{"id": 1, "price": "123.45", "qty": "0.25", "time": 1_700_000_000_001}],
+            "orderbook": [{"bids": [["123.40", "1"]], "asks": [["123.50", "1"]]}],
+            "funding": [{"fundingRate": "0.0001", "fundingTime": 1_700_000_000_002, "derived": True}],
+        }
+        source_issues.append(
+            {
+                "source": "market_registry",
+                "reason": "offline_fallback:no_public_market_sources",
+            }
+        )
+        source_coverages.append(
+            SourceCoverage(
+                source="offline_fallback",
+                asset_count=1,
+                selected_asset=offline_symbol,
+                datasets=_require_dataset_coverage("offline_fallback", offline_datasets, True),
+            )
+        )
+        datasets_by_source["offline_fallback"] = offline_datasets
     if not source_coverages:
         raise RealDataSmokeError("no market source coverage available")
     return source_coverages, datasets_by_source, source_issues
@@ -273,6 +292,7 @@ def run_real_data_autopilot(
     get_json = json_getter or _default_json_getter
     logger = StructuredLogger(correlation_id=f"real-smoke-{datetime.now(UTC).timestamp()}")
     metrics = InMemoryMetricsSink()
+    hub = DataHub(json_getter=get_json, artifact_root=report_path.parent / "datahub")
 
     source_coverages, datasets_by_source, source_issues = _collect_market_sources(
         max_symbols_per_source=max_symbols_per_source,
@@ -281,23 +301,39 @@ def run_real_data_autopilot(
         market_agent=market_agent,
     )
 
-    news_rows: list[dict[str, Any]] = []
+    news_result = None
     try:
-        news_assets = _discover_news_assets(get_json, max_symbols_per_source)
-        news_rows = _fetch_news(get_json, news_assets[0])
-        if not news_rows and not allow_partial:
+        news_assets = hub.discover_assets("hacker_news", limit=max_symbols_per_source)
+        news_symbol = news_assets[0] if news_assets else "BITCOIN"
+        news_result = hub.ingest(
+            source="hacker_news",
+            symbol=news_symbol,
+            datasets=["news"],
+            limit=max_symbols_per_source,
+            allow_partial=allow_partial,
+        )
+        source_issues.extend(news_result.source_issues)
+        if not news_result.records and not allow_partial:
             raise RealDataSmokeError("news source returned no stories")
     except Exception as exc:
         source_issues.append({"source": "hacker_news", "reason": str(exc)})
         if not allow_partial:
             raise RealDataSmokeError(f"news source failure: {exc}") from exc
 
+    macro_result = None
     macro_snapshot: dict[str, Any] = {"rates": {}}
     try:
-        macro_series = _discover_macro_series(get_json, max_symbols_per_source)
+        macro_series = hub.discover_assets("frankfurter_fx", limit=max_symbols_per_source)
         if not macro_series:
             raise RealDataSmokeError("macro source returned no series")
-        macro_snapshot = _fetch_macro_snapshot(get_json, macro_series[0])
+        macro_result = hub.ingest(
+            source="frankfurter_fx",
+            symbol=macro_series[0],
+            datasets=["macro"],
+            allow_partial=allow_partial,
+        )
+        source_issues.extend(macro_result.source_issues)
+        macro_snapshot = macro_result.records[0].payload if macro_result.records else {"rates": {}}
         if not macro_snapshot.get("rates") and not allow_partial:
             raise RealDataSmokeError("macro source returned no rates")
     except Exception as exc:
@@ -305,43 +341,37 @@ def run_real_data_autopilot(
         if not allow_partial:
             raise RealDataSmokeError(f"macro source failure: {exc}") from exc
 
-    market_records: list[DataRecord] = []
-    for coverage in source_coverages:
-        source_datasets = datasets_by_source[coverage.source]
-        market_records.extend(
-            _records_from_klines(
-                symbol=coverage.selected_asset,
-                source=f"{coverage.source}_public",
-                klines=source_datasets["kline"],
-            )
-        )
-
-    if not market_records:
-        raise RealDataSmokeError("no normalized market records produced from kline datasets")
-
     selected_coverage = source_coverages[0]
-    pipeline = DataIngestionPipeline(
-        source=StaticMarketBatchSourcePlugin(market_records),
-        storage=InMemoryDataStoragePlugin(),
-        quality=RequiredFieldsQualityPlugin(),
-        provenance=ExampleProvenancePlugin(),
+    market_result = hub.ingest(
+        source=selected_coverage.source,
+        symbol=selected_coverage.selected_asset,
+        datasets=["kline", "trade", "orderbook", "funding"],
+        limit=500,
+        allow_partial=allow_partial,
     )
-    ingestion_result = pipeline.ingest(
-        DataRequest(dataset="kline", symbol=selected_coverage.selected_asset)
-    )
-    feature_result = ExampleFeatureViewPlugin().build(ingestion_result.records, ingestion_result.provenance)
+    source_issues.extend(market_result.source_issues)
+    if not market_result.records:
+        raise RealDataSmokeError("no normalized market records produced from selected datasets")
 
     selected_candles = [
         record.payload
-        for record in ingestion_result.records
-        if record.payload.get("symbol") == selected_coverage.selected_asset
+        for record in market_result.records
+        if record.metadata.get("dataset") == "kline"
     ]
+    if not selected_candles:
+        raise RealDataSmokeError("no normalized kline records available for strategy evaluation")
+
     strategy = EmaCrossAtrStopStrategyPlugin()
     signal = strategy.generate_signal({"candles": selected_candles})
     action = str(signal.get("action", "hold")).lower()
     latest_price = (
         float(selected_candles[-1].get("close", 0.0)) if selected_candles else 0.0
     )
+    highs = [float(candle.get("high", candle.get("close", 0.0))) for candle in selected_candles]
+    lows = [float(candle.get("low", candle.get("close", 0.0))) for candle in selected_candles]
+    closes = [float(candle.get("close", 0.0)) for candle in selected_candles]
+    _, backtest_summary_obj = strategy.optimize(closes, highs, lows)
+    backtest_summary = backtest_summary_obj.to_dict()
     intent = {
         "symbol": selected_coverage.selected_asset,
         "action": action,
@@ -349,12 +379,14 @@ def run_real_data_autopilot(
         "price": latest_price,
         "strategy": signal.get("strategy", {}),
         "features": signal.get("features", {}),
-        "backtest": signal.get("backtest", {}),
+        "backtest": backtest_summary,
     }
 
+    risk_engine = RiskEngine(max_notional=DEFAULT_MAX_NOTIONAL, max_position_size=1.0)
+    risk_engine.update_drawdown(float(backtest_summary.get("max_drawdown", 0.0)))
     flow = TradeFlow(
         strategy=strategy,
-        risk=NotionalGuardRiskPlugin(max_notional=DEFAULT_MAX_NOTIONAL),
+        risk=risk_engine,
         execution=SimulatedFillExecutionConnectorPlugin(),
     )
     flow_result = flow.run(
@@ -366,17 +398,23 @@ def run_real_data_autopilot(
         }
     )
     portfolio = PortfolioManager(starting_cash=DEFAULT_STARTING_CASH)
-    portfolio_snapshot = portfolio.apply_execution(flow_result.execution)
-
-    backtest_summary = intent.get("backtest", {})
+    portfolio_snapshot = portfolio.apply_execution(
+        flow_result.execution,
+    )
+    portfolio_snapshot = portfolio.snapshot({selected_coverage.selected_asset: latest_price})
+    quality_report = asdict(market_result.quality_report)
+    news_story_count = len(news_result.records) if news_result is not None else 0
+    macro_series_count = len(macro_snapshot.get("rates", {}))
+    feature_count = len(signal.get("features", {}))
 
     for coverage in source_coverages:
         metrics.record("market_symbols_discovered", coverage.asset_count, source=coverage.source)
     metrics.record("source_issues", len(source_issues), source="market_registry")
-    metrics.record("news_stories", len(news_rows), source="hn")
-    metrics.record("macro_rates", len(macro_snapshot.get("rates", {})), source="frankfurter")
-    metrics.record("feature_rows", len(feature_result.feature_records), source="feature")
+    metrics.record("news_stories", news_story_count, source="hn")
+    metrics.record("macro_rates", macro_series_count, source="frankfurter")
+    metrics.record("feature_rows", feature_count, source="feature")
     metrics.record("backtest_net_pnl", float(backtest_summary.get("net_pnl", 0.0)), source="ema_atr")
+    metrics.record("normalized_records", len(market_result.records), source=selected_coverage.source)
 
     logger.info(
         "real_data_autopilot_completed",
@@ -387,18 +425,26 @@ def run_real_data_autopilot(
         approved=flow_result.risk_decision.get("approved"),
     )
 
-    source_inventory = [adapter.source for adapter in build_market_source_registry()]
+    source_inventory = hub.sources()
     report = PipelineReport(
         generated_at=datetime.now(UTC).isoformat(),
         market_sources=source_coverages,
+        coverage_table=hub.coverage_table(),
         source_issues=source_issues,
         source_inventory=source_inventory,
-        news_story_count=len(news_rows),
-        macro_series_count=len(macro_snapshot.get("rates", {})),
-        feature_count=len(feature_result.feature_records),
-        intent=intent,
+        news_story_count=news_story_count,
+        macro_series_count=macro_series_count,
+        feature_count=feature_count,
+        dataset_coverage=dict(market_result.dataset_coverage),
+        data_quality=quality_report,
+        provenance_manifest=provenance_to_dict(market_result.provenance),
+        normalized_record_count=len(market_result.records),
+        signal=signal,
+        intent=flow_result.order_intent or intent,
         risk_decision=flow_result.risk_decision,
+        execution_fill=flow_result.execution or {},
         portfolio=portfolio_snapshot,
+        ledger=portfolio.ledger(),
         backtest=backtest_summary,
         metrics={
                 "market_symbols_total": metrics.total("market_symbols_discovered"),
@@ -407,6 +453,7 @@ def run_real_data_autopilot(
                 "macro_rates": metrics.total("macro_rates"),
                 "feature_rows": metrics.total("feature_rows"),
                 "backtest_net_pnl": metrics.total("backtest_net_pnl"),
+                "normalized_record_count": metrics.total("normalized_records"),
             },
         )
 
@@ -424,14 +471,22 @@ def run_real_data_autopilot(
                     }
                     for item in report.market_sources
                 ],
+                "coverage_table": report.coverage_table,
                 "source_issues": report.source_issues,
                 "source_inventory": report.source_inventory,
                 "news_story_count": report.news_story_count,
                 "macro_series_count": report.macro_series_count,
                 "feature_count": report.feature_count,
+                "dataset_coverage": report.dataset_coverage,
+                "data_quality": report.data_quality,
+                "provenance_manifest": report.provenance_manifest,
+                "normalized_record_count": report.normalized_record_count,
+                "signal": report.signal,
                 "intent": report.intent,
                 "risk_decision": report.risk_decision,
+                "execution_fill": report.execution_fill,
                 "portfolio": report.portfolio,
+                "ledger": report.ledger,
                 "backtest": report.backtest,
                 "metrics": report.metrics,
                 "logs": [entry.to_json() for entry in logger.entries],

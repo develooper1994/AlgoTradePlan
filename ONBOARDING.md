@@ -25,6 +25,8 @@ For new asset or source plugins:
 5. ensure relevant runbook references are present
 
 ## Jupyter + Real Data
-- Open `notebooks/algotrade_e2e_demo.ipynb` for the end-to-end notebook path.
-- Notebook runs the same autonomous scripts (`run_all_phases.py` and
-  `e2e_real_data_smoke.py`) and writes reports to `artifacts/`.
+- Start with `notebooks/01_real_data_smoke.ipynb`, then continue with
+  `notebooks/02_strategy_backtest_portfolio.ipynb` and
+  `notebooks/03_multi_source_asset_coverage.ipynb`.
+- Notebook workflows use the public `algotradeplan.data` API and the same
+  `e2e_real_data_smoke.py` report path under `artifacts/`.

@@ -22,19 +22,20 @@ class TradeIntent:
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def to_structured_order_intent(self) -> "OrderIntent":
+        return OrderIntent(
+            symbol=self.symbol,
+            action=self.side,
+            quantity=self.quantity,
+            price=self.price,
+            order_type=self.order_type,
+            strategy_id=self.strategy_id,
+            metadata=dict(self.metadata),
+        )
+
     def to_order_intent(self) -> dict[str, Any]:
         """Convert to the order_intent dict expected by risk/execution plugins."""
-        return {
-            "symbol": self.symbol,
-            "action": self.side,
-            "context": {
-                "symbol": self.symbol,
-                "price": self.price,
-                "quantity": self.quantity,
-                "order_type": self.order_type,
-                "strategy_id": self.strategy_id,
-            },
-        }
+        return self.to_structured_order_intent().to_dict()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,6 +47,67 @@ class TradeIntent:
             "strategy_id": self.strategy_id,
             "timestamp": self.timestamp,
             "metadata": self.metadata,
+        }
+
+
+@dataclass(frozen=True)
+class OrderIntent:
+    symbol: str
+    action: str
+    quantity: float
+    price: float
+    order_type: str = "market"
+    strategy_id: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+    @classmethod
+    def from_trade_intent(
+        cls,
+        intent: TradeIntent,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> "OrderIntent":
+        merged_metadata = dict(intent.metadata)
+        if metadata:
+            merged_metadata.update(metadata)
+        return cls(
+            symbol=intent.symbol,
+            action=intent.side,
+            quantity=intent.quantity,
+            price=intent.price,
+            order_type=intent.order_type,
+            strategy_id=intent.strategy_id,
+            metadata=merged_metadata,
+        )
+
+    def with_quantity(self, quantity: float) -> "OrderIntent":
+        return OrderIntent(
+            symbol=self.symbol,
+            action=self.action,
+            quantity=quantity,
+            price=self.price,
+            order_type=self.order_type,
+            strategy_id=self.strategy_id,
+            metadata=dict(self.metadata),
+            created_at=self.created_at,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "symbol": self.symbol,
+            "action": self.action,
+            "price": self.price,
+            "quantity": self.quantity,
+            "context": {
+                "symbol": self.symbol,
+                "price": self.price,
+                "quantity": self.quantity,
+                "order_type": self.order_type,
+                "strategy_id": self.strategy_id,
+                "metadata": self.metadata,
+                "created_at": self.created_at,
+            },
         }
 
 

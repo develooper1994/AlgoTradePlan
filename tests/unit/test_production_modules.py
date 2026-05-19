@@ -14,8 +14,11 @@ from src.algotradeplan.core.canonical import (
     OrderbookSnapshot,
     TradeRecord,
 )
-from src.algotradeplan.core.intent import TradeIntent, signal_to_intent
+from src.algotradeplan.core.intent import OrderIntent, TradeIntent, signal_to_intent
 from src.algotradeplan.portfolio.manager import PortfolioManager
+from src.algotradeplan.plugins.connectors.simulated_fill_connector import (
+    SimulatedFillExecutionConnectorPlugin,
+)
 from src.algotradeplan.plugins.risk.engine import RiskDecision, RiskEngine
 
 
@@ -258,6 +261,47 @@ class IntentModelTest(unittest.TestCase):
         d = intent.to_dict()
         for key in ("symbol", "side", "quantity", "order_type", "price", "strategy_id", "timestamp"):
             self.assertIn(key, d)
+
+    def test_structured_order_intent_carries_metadata(self) -> None:
+        intent = TradeIntent(
+            symbol="BTC/USDT", side="buy", quantity=0.02,
+            order_type="market", price=50_000.0, strategy_id="ema_cross",
+            metadata={"signal_id": "abc123"},
+        )
+        order_intent = OrderIntent.from_trade_intent(intent)
+        payload = order_intent.to_dict()
+        self.assertEqual(payload["action"], "buy")
+        self.assertEqual(payload["context"]["metadata"]["signal_id"], "abc123")
+
+
+class SimulatedFillConnectorTest(unittest.TestCase):
+    def test_fill_contains_fee_slippage_and_notional(self) -> None:
+        connector = SimulatedFillExecutionConnectorPlugin()
+        fill = connector.send_order(
+            {
+                "symbol": "BTC/USDT",
+                "action": "buy",
+                "price": 50_000.0,
+                "quantity": 0.01,
+                "context": {"price": 50_000.0, "quantity": 0.01},
+            }
+        )
+        for key in (
+            "order_id",
+            "status",
+            "symbol",
+            "action",
+            "requested_quantity",
+            "filled_quantity",
+            "requested_price",
+            "fill_price",
+            "fee",
+            "slippage",
+            "notional",
+            "filled_at",
+        ):
+            self.assertIn(key, fill)
+        self.assertGreater(fill["fill_price"], fill["requested_price"])
 
 
 if __name__ == "__main__":

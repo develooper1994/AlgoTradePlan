@@ -38,10 +38,14 @@ class PortfolioManager:
         if not execution:
             return self.snapshot()
 
+        status = str(execution.get("status", "filled")).lower()
+        if status not in {"filled", "partially_filled", "partial_fill"}:
+            return self.snapshot()
+
         symbol = str(execution.get("symbol", ""))
         action = str(execution.get("action", "")).lower()
-        quantity = float(execution.get("quantity", 0.0))
-        price = float(execution.get("price", 0.0))
+        quantity = float(execution.get("filled_quantity", execution.get("quantity", 0.0)))
+        price = float(execution.get("fill_price", execution.get("price", 0.0)))
 
         if action not in {"buy", "sell"} or quantity <= 0 or price <= 0:
             return self.snapshot()
@@ -64,6 +68,14 @@ class PortfolioManager:
             price=price,
             fee=fee,
             realized_pnl=realized_pnl,
+            metadata={
+                "order_id": execution.get("order_id"),
+                "status": status,
+                "requested_quantity": execution.get("requested_quantity"),
+                "requested_price": execution.get("requested_price"),
+                "slippage": execution.get("slippage"),
+                "notional": execution.get("notional", notional),
+            },
         )
 
         snap = self.snapshot()
