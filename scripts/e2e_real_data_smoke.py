@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import sys
 from pathlib import Path
@@ -21,6 +22,7 @@ def main() -> None:
     parser.add_argument("--report-path", default="artifacts/real_data_smoke_report.json")
     parser.add_argument("--max-symbols", type=int, default=5)
     parser.add_argument("--allow-partial", action="store_true")
+    parser.add_argument("--interactive", action="store_true")
     args = parser.parse_args()
 
     report = run_real_data_autopilot(
@@ -36,6 +38,15 @@ def main() -> None:
         f"macro_series_count={report.macro_series_count} "
         f"signal={report.intent.get('action')}"
     )
+    if args.interactive:
+        print("\n=== intent ===")
+        print(json.dumps(report.intent, indent=2))
+        print("\n=== risk ===")
+        print(json.dumps(report.risk_decision, indent=2))
+        print("\n=== portfolio ===")
+        print(json.dumps(report.portfolio, indent=2))
+        print("\n=== metrics ===")
+        print(json.dumps(report.metrics, indent=2))
 
 
 if __name__ == "__main__":
