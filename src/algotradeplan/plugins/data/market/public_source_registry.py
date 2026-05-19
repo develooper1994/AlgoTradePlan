@@ -310,10 +310,15 @@ def _twelvedata_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         [index, row.get("open", "0"), row.get("high", "0"), row.get("low", "0"), row.get("close", "0")]
         for index, row in enumerate(values, start=1)
     ]
+    tick_payload = (
+        [{"symbol": symbol, "price": values[0].get("close", "0")}]
+        if values
+        else [{"symbol": symbol, "price": "0"}]
+    )
     return _attach_derived_funding(
         symbol,
         {
-            "tick": [{"symbol": symbol, "price": values[0].get("close", "0")}] if values else [{"symbol": symbol, "price": "0"}],
+            "tick": tick_payload,
             "kline": klines,
             "trade": [{"symbol": symbol, "source": "twelvedata_time_series"}] if values else [],
             "orderbook": [{"symbol": symbol, "source": "twelvedata"}] if values else [],
