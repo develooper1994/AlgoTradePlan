@@ -67,7 +67,8 @@ def get_json(url: str, params: dict[str, object]):
     query = urlencode({k: v for k, v in params.items() if v is not None})
     request_url = f"{url}?{query}" if query else url
     request = Request(request_url, headers={"Accept": "application/json", "User-Agent": "AlgoTradePlanNotebook/1.0"})
-    with urlopen(request, timeout=20, context=ssl.create_default_context()) as response:
+    timeout_seconds = 20  # increase/decrease per provider latency in production notebooks
+    with urlopen(request, timeout=timeout_seconds, context=ssl.create_default_context()) as response:
         return json.loads(response.read().decode("utf-8"))
 
 results, issues = collect_market_source_data(

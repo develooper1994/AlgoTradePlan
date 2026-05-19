@@ -11,7 +11,7 @@ phase documents under `docs/phases/` against the canonical roadmap in
 - **Do not advance beyond the active autonomous real-data phase until the Phase
   18 gaps below are closed.**
 
-## Functional Stage Matrix (Eksikler üstte)
+## Functional Stage Matrix (Incomplete items at top)
 
 - [ ] **Live-source hardening gate (Phase 18 close criteria):** real upstream
   stability + stronger non-mock evidence is still open.
