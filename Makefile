@@ -19,8 +19,8 @@ onboarding:
 	@echo "Recommended flow: make bootstrap && make lint && make test && make smoke && make runbook_check"
 
 runbook_check:
-	test -f docs/runbook_masterlist.md
-	test -f docs/runbooks/README.md
+	test -f docs/runbook_masterlist.md || { echo "Error: docs/runbook_masterlist.md not found. Please create it or verify docs layout."; exit 1; }
+	test -f docs/runbooks/README.md || { echo "Error: docs/runbooks/README.md not found. Please create it or verify docs layout."; exit 1; }
 	@echo "runbook_check_ok"
 
 docs:

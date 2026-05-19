@@ -26,16 +26,20 @@ class EmptyDataSource:
 
 class DataIngestionPipelineExamplesTest(unittest.TestCase):
     FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+    _DATA_INGESTION_SCENARIOS_CACHE: list[dict[str, Any]] | None = None
 
     @staticmethod
-    def _load_scenarios() -> list[dict[str, Any]]:
+    def _load_data_ingestion_scenarios() -> list[dict[str, Any]]:
+        if DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE is not None:
+            return DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE
         fixtures_path = DataIngestionPipelineExamplesTest.FIXTURES_DIR / "data_ingestion_assets.json"
         with fixtures_path.open("r", encoding="utf-8") as fixture_file:
             fixture_payload = json.load(fixture_file)
-        return fixture_payload["scenarios"]
+        DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE = fixture_payload["scenarios"]
+        return DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE
 
     def test_pipeline_supports_market_news_and_macro_plugins(self) -> None:
-        scenarios = self._load_scenarios()
+        scenarios = self._load_data_ingestion_scenarios()
         source_by_domain = {
             "market": ExampleMarketDataSource,
             "news": ExampleNewsDataSource,
