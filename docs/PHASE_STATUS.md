@@ -31,10 +31,10 @@ repository/docs state.
   `docs/production_acceptance.md`.
 
 ### Active / Next
-- **Phase 17 (active)**: data-first ingestion/storage abstraction hardening for
-  asset/source extensibility with fixture-backed adapter coverage and onboarding
-  runbook integration (`docs/phases/17.md`,
-  `tests/fixtures/data_ingestion_assets.json`, `ONBOARDING.md`).
+- **Phase 18 (active)**: autonomous self-boot pipeline with real-data smoke
+  coverage, phase checkpoint runner, and notebook E2E walkthrough
+  (`docs/phases/18.md`, `scripts/run_all_phases.py`,
+  `scripts/e2e_real_data_smoke.py`, `notebooks/algotrade_e2e_demo.ipynb`).
 
 ## Acceptance Validation Commands
 Run these in order before tagging a release:

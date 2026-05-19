@@ -1,8 +1,8 @@
 # Usage with Notebooks
 
-Bu rehber, frameworkün notebook ile tek varlık ve çoklu portföy akışında nasıl çalıştırılacağını gösterir.
+This guide explains how to run the framework from notebooks for both smoke and full workflow scenarios.
 
-## 1) Ortam Kurulumu
+## 1) Environment Setup
 
 ```bash
 make bootstrap
@@ -11,27 +11,33 @@ make test
 make smoke
 ```
 
-Notebook çalıştırmak için:
+To launch Jupyter:
 
 ```bash
 python -m pip install jupyterlab
-jupyter lab notebooks/real_data_workflow.ipynb
+jupyter lab
 ```
 
-## 2) Çalıştırılacak Notebook
+## 2) Notebooks
 
-- `notebooks/real_data_workflow.ipynb`
+- `notebooks/algotrade_e2e_demo.ipynb` (autonomous self-boot demo using `run_all_phases.py`)
+- `notebooks/real_data_workflow.ipynb` (step-by-step real-data workflow)
 
-Notebook içeriği:
-- config/custom parametre seçimi
-- asset discovery (ccxt varsa doğrudan, değilse fallback liste)
-- market/news/macro ingestion (public endpoint örnekleri)
-- feature engineering ve inceleme
-- rolling window optimize/backtest (OOS ayrımı)
-- signal -> intent -> risk -> portfolio akışı (`TradeFlow`)
-- tek varlık ve çoklu portföy metrik özeti
+Typical flow covered by notebooks:
+- config/custom parameter selection
+- asset discovery from connected sources
+- market/news/macro ingestion using available public endpoints
+- feature engineering preview
+- rolling-window optimize/backtest with OOS split
+- signal -> intent -> risk -> portfolio via `TradeFlow`
+- single-asset and multi-portfolio metric summaries
 
-## 3) Fail-Proof Onboarding Notu
+## 3) Smoke + Validation Notes
 
-- Ağ veya üçüncü taraf kaynak erişimi yoksa notebook hücreleri açıklayıcı hata üretir.
-- CI tarafında notebook smoke kontrolü `make smoke` içindeki `scripts/notebook_smoke_check.py` ile doğrulanır.
+- If network or third-party APIs are unavailable, notebook cells should fail with explicit errors.
+- Notebook smoke is validated by `make smoke` (including `scripts/notebook_smoke_check.py`).
+- Autonomous real-data path can be executed with:
+
+```bash
+python scripts/run_all_phases.py --include-live-smoke
+```

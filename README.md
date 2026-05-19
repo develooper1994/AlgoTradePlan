@@ -53,6 +53,18 @@ make smoke
 make runbook_check
 ```
 
+## Autonomous Real-Data Pipeline
+```bash
+python scripts/run_all_phases.py --include-live-smoke
+# or
+make autopilot
+```
+
+The real-data smoke stage auto-discovers assets and validates market/news/macro
+source coverage while running ingestion -> feature -> optimization -> intent ->
+risk -> portfolio flow. Report output:
+`artifacts/real_data_smoke_report.json`.
+
 ## Key Entry Points
 - Master plan: `docs/MASTER_PLAN.md`
 - Phase status snapshot: `docs/PHASE_STATUS.md`
@@ -66,6 +78,7 @@ make runbook_check
 - Onboarding: `ONBOARDING.md`, `docs/onboarding_10min.md`
 - Notebook usage: `docs/usage_with_notebooks.md`, `notebooks/real_data_workflow.ipynb`
 - Bootstrap + E2E scripts: `scripts/bootstrap.sh`, `scripts/hello_world_e2e.py`
+- Autonomous pipeline scripts: `scripts/run_all_phases.py`, `scripts/e2e_real_data_smoke.py`
 - Test runner script: `scripts/run_tests.py`
 - Environment and secrets flow: `docs/environment_switching.md`
 - CI workflow: `.github/workflows/ci.yml`
