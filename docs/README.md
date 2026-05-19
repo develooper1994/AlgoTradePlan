@@ -1,6 +1,7 @@
 # Documentation Index
 
 - `MASTER_PLAN.md`: canonical phased blueprint and decision log
+- `PHASE_RECAP.md`: consolidated summary of prior recommendations and next-phase direction
 - `PHASE_STATUS.md`: current completed/partial/missing phase snapshot and next target order
 - `DATA_STRATEGY.md`: multi-domain ingestion, storage, quality, and provenance strategy
 - `ARCHITECTURE.md`: current architecture diagram and module boundaries
@@ -10,6 +11,7 @@
 - `phases/`: per-phase goals, requirements, validation, and tests
 - `runbooks/`: operational and incident runbook templates/examples
 - `onboarding_10min.md`: first 10-minute path
+- `../ONBOARDING.md`: root onboarding flow tied to phase/runbook checks
 - `quickstart.md`: bootstrap and hello-world flow
 - `compliance.md`: privacy/KYC/legal baseline
 - `extensibility.md`: plugin and test adapter guide

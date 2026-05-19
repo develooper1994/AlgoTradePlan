@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import unittest
+from pathlib import Path
+from typing import Any
 
 from src.algotradeplan.plugins.data.contracts import DataRequest
 from src.algotradeplan.plugins.data.example_data_storage import InMemoryDataStoragePlugin
@@ -22,29 +25,34 @@ class EmptyDataSource:
 
 
 class DataIngestionPipelineExamplesTest(unittest.TestCase):
-    def test_pipeline_supports_market_news_and_macro_plugins(self) -> None:
-        scenarios = [
-            (
-                ExampleMarketDataSource(),
-                DataRequest(dataset="daily_bars", symbol="AAPL"),
-                "market",
-                "AAPL",
-            ),
-            (
-                ExampleNewsDataSource(),
-                DataRequest(dataset="news_events", symbol="AAPL"),
-                "news",
-                "AAPL",
-            ),
-            (
-                ExampleMacroDataSource(),
-                DataRequest(dataset="macro_releases", parameters={"series": "CPI"}),
-                "macro",
-                "CPI",
-            ),
-        ]
+    FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+    _DATA_INGESTION_SCENARIOS_CACHE: list[dict[str, Any]] | None = None
 
-        for source, request, expected_domain, expected_join_key in scenarios:
+    @staticmethod
+    def _load_data_ingestion_scenarios() -> list[dict[str, Any]]:
+        if DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE is not None:
+            return DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE
+        fixtures_path = DataIngestionPipelineExamplesTest.FIXTURES_DIR / "data_ingestion_assets.json"
+        with fixtures_path.open("r", encoding="utf-8") as fixture_file:
+            fixture_payload = json.load(fixture_file)
+        DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE = fixture_payload["scenarios"]
+        return DataIngestionPipelineExamplesTest._DATA_INGESTION_SCENARIOS_CACHE
+
+    def test_pipeline_supports_market_news_and_macro_plugins(self) -> None:
+        scenarios = self._load_data_ingestion_scenarios()
+        source_by_domain = {
+            "market": ExampleMarketDataSource,
+            "news": ExampleNewsDataSource,
+            "macro": ExampleMacroDataSource,
+        }
+
+        for scenario in scenarios:
+            source = source_by_domain[scenario["domain"]]()
+            request = DataRequest(
+                dataset=scenario["dataset"],
+                symbol=scenario.get("symbol"),
+                parameters=scenario.get("parameters", {}),
+            )
             pipeline = DataIngestionPipeline(
                 source=source,
                 storage=InMemoryDataStoragePlugin(),
@@ -55,8 +63,8 @@ class DataIngestionPipelineExamplesTest(unittest.TestCase):
             result = pipeline.ingest(request)
 
             self.assertTrue(result.quality_report.passed)
-            self.assertEqual(result.records[0].domain, expected_domain)
-            self.assertEqual(result.records[0].metadata["join_key"], expected_join_key)
+            self.assertEqual(result.records[0].domain, scenario["domain"])
+            self.assertEqual(result.records[0].metadata["join_key"], scenario["expected_join_key"])
             self.assertEqual(result.provenance.source_plugin_id, source.plugin_id)
             self.assertEqual(result.storage_receipts[0].record_keys, [result.records[0].key])
 

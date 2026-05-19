@@ -35,6 +35,7 @@ This document is the canonical phased blueprint for AlgoTradePlan. Code should a
 | 14 | Security, dependency, and compliance guardrails | `/docs/phases/14.md` |
 | 15 | Extension lifecycle and contributor workflow | `/docs/phases/15.md` |
 | 16 | Production acceptance and continuous governance | `/docs/phases/16.md` |
+| 17 | Data-first asset/source expansion hardening | `/docs/phases/17.md` |
 
 ## Active Phase Rule
 - only the active phase may introduce new modules or interfaces
@@ -56,3 +57,6 @@ Each plugin root must include at least one example implementation and test cover
 
 ### D-005: Governance is part of the product
 Review, deploy, runbook, and change-management rules live beside code and must evolve with the platform.
+
+### D-006: New asset plugins must include fixtures
+Each new asset/source plugin must ship deterministic adapter tests and dummy fixture entries so ingestion behavior stays reviewable and reproducible.

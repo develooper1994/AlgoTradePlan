@@ -5,7 +5,7 @@ repository/docs state.
 
 ## Summary
 
-### Completed (all 16 phases)
+### Completed (phases 01-16)
 - **Phase 01**: planning/governance baseline docs and runbook scaffolding.
 - **Phase 02**: core contracts/runtime scaffolding and deterministic unit tests.
 - **Phase 03**: lint/test/smoke path is active and green.
@@ -30,8 +30,11 @@ repository/docs state.
 - **Phase 16**: production acceptance documented at
   `docs/production_acceptance.md`.
 
-### Partial / Missing
-- None at this snapshot. Re-evaluate this list whenever a phase artifact regresses.
+### Active / Next
+- **Phase 17 (active)**: data-first ingestion/storage abstraction hardening for
+  asset/source extensibility with fixture-backed adapter coverage and onboarding
+  runbook integration (`docs/phases/17.md`,
+  `tests/fixtures/data_ingestion_assets.json`, `ONBOARDING.md`).
 
 ## Acceptance Validation Commands
 Run these in order before tagging a release:
@@ -45,4 +48,3 @@ Run these in order before tagging a release:
 - update this file whenever a phase advances, regresses, or adds new evidence
 - record material decisions in `/docs/MASTER_PLAN.md` decision log
 - ensure every new incident class lands in `/docs/runbooks/`
-

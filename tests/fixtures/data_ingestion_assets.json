@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "domain": "market",
+      "dataset": "daily_bars",
+      "symbol": "AAPL",
+      "expected_join_key": "AAPL"
+    },
+    {
+      "domain": "news",
+      "dataset": "news_events",
+      "symbol": "AAPL",
+      "expected_join_key": "AAPL"
+    },
+    {
+      "domain": "macro",
+      "dataset": "macro_releases",
+      "parameters": {
+        "series": "CPI"
+      },
+      "expected_join_key": "CPI"
+    }
+  ]
+}

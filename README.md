@@ -47,8 +47,10 @@ This repository now includes:
 ## Quick Start
 ```bash
 make bootstrap
+make lint
 make test
 make smoke
+make runbook_check
 ```
 
 ## Key Entry Points
@@ -61,6 +63,7 @@ make smoke
 - Contributor workflow: `CONTRIBUTING.md`
 - Maintainer policy: `MAINTAINERS.md`
 - Documentation index: `docs/README.md`
+- Onboarding: `ONBOARDING.md`, `docs/onboarding_10min.md`
 - Bootstrap + E2E scripts: `scripts/bootstrap.sh`, `scripts/hello_world_e2e.py`
 - Test runner script: `scripts/run_tests.py`
 - Environment and secrets flow: `docs/environment_switching.md`
