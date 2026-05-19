@@ -367,9 +367,9 @@ def run_real_data_autopilot(
     latest_price = (
         float(selected_candles[-1].get("close", 0.0)) if selected_candles else 0.0
     )
-    highs = [float(candle["high"]) for candle in selected_candles]
-    lows = [float(candle["low"]) for candle in selected_candles]
-    closes = [float(candle["close"]) for candle in selected_candles]
+    highs = [float(candle.get("high", candle.get("close", 0.0))) for candle in selected_candles]
+    lows = [float(candle.get("low", candle.get("close", 0.0))) for candle in selected_candles]
+    closes = [float(candle.get("close", 0.0)) for candle in selected_candles]
     _, backtest_summary_obj = strategy.optimize(closes, highs, lows)
     backtest_summary = backtest_summary_obj.to_dict()
     intent = {
