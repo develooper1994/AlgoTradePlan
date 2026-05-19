@@ -1,6 +1,7 @@
 # Documentation Index
 
 - `MASTER_PLAN.md`: canonical phased blueprint and decision log
+- `PHASE_STATUS.md`: current completed/partial/missing phase snapshot and next target order
 - `DATA_STRATEGY.md`: multi-domain ingestion, storage, quality, and provenance strategy
 - `ARCHITECTURE.md`: current architecture diagram and module boundaries
 - `AGENTS.md`: agent contracts, automation policy, and working rules
@@ -12,6 +13,7 @@
 - `quickstart.md`: bootstrap and hello-world flow
 - `compliance.md`: privacy/KYC/legal baseline
 - `extensibility.md`: plugin and test adapter guide
+- `production_acceptance.md`: Phase 16 production acceptance evidence
 - `migration_upgrade.md`: migration and upgrade playbook
 - `dependency_policy.md`: third-party package policy
 - `dry_run_simulate_live.md`: dry-run/simulate/live transition
