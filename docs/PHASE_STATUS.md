@@ -1,48 +1,48 @@
 # Phase Status Snapshot (2026-05-19)
 
-This snapshot compares the approved phased roadmap with the current repository/docs state.
+This snapshot compares the approved phased roadmap with the current
+repository/docs state.
 
 ## Summary
 
-### Completed
-- **Phase 01**: planning/governance baseline docs and runbook scaffolding are present.
-- **Phase 02**: core contracts/runtime scaffolding and deterministic unit tests are present.
-- **Phase 03**: lint/test/smoke path is active and currently green.
-- **Phase 04**: shared data contracts + market/news/macro source abstractions exist.
-- **Phase 05**: ingestion pipeline (quality/storage/provenance) is implemented and tested.
-- **Phase 07**: strategy/model plugin skeletons and example adapter tests are present.
-- **Phase 08**: runtime config loader + environment switching documentation are present.
+### Completed (all 16 phases)
+- **Phase 01**: planning/governance baseline docs and runbook scaffolding.
+- **Phase 02**: core contracts/runtime scaffolding and deterministic unit tests.
+- **Phase 03**: lint/test/smoke path is active and green.
+- **Phase 04**: shared data contracts + market/news/macro source abstractions.
+- **Phase 05**: ingestion pipeline (quality/storage/provenance) implemented and tested.
+- **Phase 06**: curated/research feature lane with replay-safe provenance metadata
+  (`src/algotradeplan/plugins/data/curated/`).
+- **Phase 07**: strategy/model plugin skeletons and example adapter tests.
+- **Phase 08**: runtime config loader + environment switching documentation.
+- **Phase 09**: structured logger with PII redaction, in-memory metrics sink,
+  observability runbook (`src/algotradeplan/observability/`).
+- **Phase 10**: risk-before-execution `TradeFlow` orchestrator with emergency
+  stop and runbook (`src/algotradeplan/orchestration/trade_flow.py`).
+- **Phase 11**: deterministic drift-detecting reconciler with recovery actions
+  and state-recovery runbook (`src/algotradeplan/plugins/reconciliation/drift_reconciler.py`).
+- **Phase 12**: provenance-driven replay harness gating dry-run promotion
+  (`src/algotradeplan/backtest/replay.py`).
+- **Phase 13**: `scripts/deploy_check.py` + deployment/rollback runbook.
+- **Phase 14**: `scripts/security_check.py` + dependency allowlist policy.
+- **Phase 15**: `docs/extending.md` lists all current plugin roots and a
+  contributor PR checklist.
+- **Phase 16**: production acceptance documented at
+  `docs/production_acceptance.md`.
 
 ### Partial / Missing
-- **Phase 06 (critical gap)**: curated research/feature lanes and replay-focused tests are not yet implemented.
-- **Phase 09**: observability/debug foundations are mostly documentation-level; contract/smoke coverage is missing.
-- **Phase 10**: risk and execution plugin examples exist, but there is no explicit risk-before-execution orchestration path/test.
-- **Phase 11**: reconciliation example exists; deterministic drift-recovery workflow and recovery smoke checks are missing.
-- **Phase 12**: dry-run/simulate/live docs exist; replay-parity and rollback validation coverage is incomplete.
-- **Phase 13**: deploy readiness is partially documented, but explicit deploy approval/rollback validation flow is incomplete.
-- **Phase 14**: dependency/compliance docs exist; stronger automated security/compliance gates remain to be completed.
-- **Phase 15**: extension/contributor docs are strong, but still depend on missing earlier-phase operational capabilities.
-- **Phase 16**: cannot be complete until all prior phase approvals are complete.
+- None at this snapshot. Re-evaluate this list whenever a phase artifact regresses.
 
-## Recommended Next Target
+## Acceptance Validation Commands
+Run these in order before tagging a release:
+1. `make lint`
+2. `make test`
+3. `make smoke`
+4. `python scripts/deploy_check.py --repo-root .`
+5. `python scripts/security_check.py --repo-root .`
 
-Per `docs/MASTER_PLAN.md` active-phase rule, the next target should be **Phase 06** before advancing deeper into later phases.
-
-## Suggested Execution Order (from now)
-1. **Finish Phase 06**
-2. **Phase 09**
-3. **Phase 10**
-4. **Phase 11**
-5. **Phase 12**
-6. **Phase 13**
-7. **Phase 14**
-8. **Phase 15 (final hardening pass after above)**
-9. **Phase 16 acceptance gate**
-
-## Suggested File/Module Journey to Start Phase 06
-1. `docs/phases/06.md` — convert checklist to concrete exit criteria
-2. `docs/DATA_STRATEGY.md` — add curated/research dataset contract and replay policy detail
-3. `src/algotradeplan/plugins/data/` — add curated/research extension root behind interfaces
-4. `tests/adapters/` — add curated lane + replay determinism tests with fakes/mocks
-5. `docs/runbooks/` — add curated refresh + replay incident runbook entries
+## Continuous Governance
+- update this file whenever a phase advances, regresses, or adds new evidence
+- record material decisions in `/docs/MASTER_PLAN.md` decision log
+- ensure every new incident class lands in `/docs/runbooks/`
 

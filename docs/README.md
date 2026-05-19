@@ -13,6 +13,7 @@
 - `quickstart.md`: bootstrap and hello-world flow
 - `compliance.md`: privacy/KYC/legal baseline
 - `extensibility.md`: plugin and test adapter guide
+- `production_acceptance.md`: Phase 16 production acceptance evidence
 - `migration_upgrade.md`: migration and upgrade playbook
 - `dependency_policy.md`: third-party package policy
 - `dry_run_simulate_live.md`: dry-run/simulate/live transition
