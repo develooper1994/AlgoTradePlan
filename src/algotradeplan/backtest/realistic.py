@@ -144,8 +144,17 @@ class RealisticBacktester:
         gross_pnl = equity_curve[-1] if equity_curve else 0.0
         net_pnl = round(gross_pnl - total_cost, 8)
 
-        # Net equity curve (subtract costs proportionally)
-        net_equity_curve = [round(v - total_cost * (i / max(len(equity_curve) - 1, 1)), 8) for i, v in enumerate(equity_curve)]
+        # Net equity curve: apply trade costs at the exact bar where each trade occurs
+        cost_by_bar: dict[int, float] = {}
+        for trade in trade_list:
+            bar = int(trade["bar_index"])
+            cost_by_bar[bar] = cost_by_bar.get(bar, 0.0) + float(trade["fee"])
+
+        cumulative_cost = 0.0
+        net_equity_curve: list[float] = []
+        for i, v in enumerate(equity_curve):
+            cumulative_cost += cost_by_bar.get(i, 0.0)
+            net_equity_curve.append(round(v - cumulative_cost, 8))
 
         return BacktestSummary(
             net_pnl=net_pnl,

@@ -243,8 +243,7 @@ class IntentModelTest(unittest.TestCase):
         signal = {"action": "buy", "price": 50_000.0}
         intent = signal_to_intent(signal, symbol="BTC/USDT", quantity=0.01, strategy_id="ema")
         self.assertIsNotNone(intent)
-        assert intent is not None
-        self.assertEqual(intent.side, "buy")
+        self.assertEqual(intent.side, "buy")  # type: ignore[union-attr]
 
     def test_signal_to_intent_hold_returns_none(self) -> None:
         signal = {"action": "hold"}

@@ -173,9 +173,10 @@ class RiskEngine:
         else:
             checks.append("max_drawdown")
 
-        # -- Leverage (notional vs position_value cap)
-        effective_leverage = notional / max(quantity, 1e-9) / max(price, 1e-9) if price else 0.0
-        if effective_leverage > self.max_leverage and notional > self.max_notional:
+        # -- Leverage: notional / max_notional acts as a leverage multiplier proxy.
+        # A value > max_leverage means the order uses more than max_leverage × max_notional.
+        effective_leverage = notional / max(self.max_notional, 1e-9)
+        if effective_leverage > self.max_leverage:
             rejected_rules.append("max_leverage_exceeded")
         else:
             checks.append("max_leverage")

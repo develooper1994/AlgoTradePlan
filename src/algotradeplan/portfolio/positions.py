@@ -20,7 +20,7 @@ class Position:
             return
         total_cost = self.quantity * self.avg_entry_price + quantity * price
         self.quantity += quantity
-        self.avg_entry_price = total_cost / self.quantity if self.quantity else 0.0
+        self.avg_entry_price = total_cost / self.quantity if self.quantity > 0 else 0.0
         self.fees_paid += fee
 
     def close(self, quantity: float, price: float, fee: float = 0.0) -> float:
