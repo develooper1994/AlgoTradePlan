@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,14 +14,35 @@ from urllib.request import Request, urlopen
 
 from src.algotradeplan.observability import InMemoryMetricsSink, StructuredLogger
 from src.algotradeplan.orchestration.trade_flow import TradeFlow
+from src.algotradeplan.plugins.connectors.simulated_fill_connector import (
+    SimulatedFillExecutionConnectorPlugin,
+)
 from src.algotradeplan.plugins.data.contracts import DataRecord, DataRequest
 from src.algotradeplan.plugins.data.curated.feature_view import ExampleFeatureViewPlugin
 from src.algotradeplan.plugins.data.example_data_storage import InMemoryDataStoragePlugin
 from src.algotradeplan.plugins.data.example_provenance import ExampleProvenancePlugin
 from src.algotradeplan.plugins.data.example_quality_check import RequiredFieldsQualityPlugin
+from src.algotradeplan.plugins.data.market.static_market_batch_source import (
+    StaticMarketBatchSourcePlugin,
+)
 from src.algotradeplan.plugins.data.pipeline import DataIngestionPipeline
+from src.algotradeplan.plugins.risk.notional_guard import NotionalGuardRiskPlugin
+from src.algotradeplan.plugins.strategies.autopilot_signal_strategy import (
+    AutopilotSignalStrategyPlugin,
+)
 
 JsonGetter = Callable[[str, dict[str, Any]], Any]
+_ALLOWED_API_PREFIXES = (
+    "https://fapi.binance.com/",
+    "https://api.bybit.com/",
+    "https://hn.algolia.com/",
+    "https://api.frankfurter.dev/",
+)
+DEFAULT_ORDER_QUANTITY = 0.01
+DEFAULT_MAX_NOTIONAL = 1_000.0
+DEFAULT_STARTING_CASH = 10_000.0
+MIN_KLINE_FIELD_COUNT = 5
+EMA_WINDOW_CANDIDATES: tuple[tuple[int, int], ...] = ((3, 9), (5, 13), (8, 21), (13, 34))
 
 
 class RealDataSmokeError(RuntimeError):
@@ -56,67 +78,6 @@ class PipelineReport:
     metrics: dict[str, float]
 
 
-class _StaticRecordSource:
-    plugin_id = "real_market_batch"
-    domain = "market"
-
-    def __init__(self, records: list[DataRecord]) -> None:
-        self._records = records
-
-    def fetch(self, request: DataRequest) -> list[DataRecord]:  # noqa: ARG002
-        return list(self._records)
-
-
-class _SignalStrategy:
-    plugin_id = "real_signal_strategy"
-
-    def __init__(self, signal_action: str) -> None:
-        self._signal_action = signal_action
-
-    def generate_signal(self, context: dict[str, Any]) -> dict[str, Any]:
-        return {"action": self._signal_action, "context": context}
-
-
-class _RiskEngine:
-    plugin_id = "notional_guard_risk"
-
-    def __init__(self, max_notional: float) -> None:
-        self.max_notional = max_notional
-
-    def evaluate(self, order_intent: dict[str, Any]) -> dict[str, Any]:
-        context = order_intent.get("context", {})
-        price = float(context.get("price", 0.0))
-        quantity = float(context.get("quantity", 0.0))
-        notional = price * quantity
-        if order_intent.get("action") not in {"buy", "sell"}:
-            return {"approved": False, "reason": "unsupported_action"}
-        if notional <= 0:
-            return {"approved": False, "reason": "non_positive_notional"}
-        if notional > self.max_notional:
-            return {
-                "approved": False,
-                "reason": "max_notional_exceeded",
-                "max_notional": self.max_notional,
-                "requested_notional": notional,
-            }
-        return {"approved": True, "notional": notional}
-
-
-class _ExecutionConnector:
-    plugin_id = "simulated_fill_connector"
-
-    def send_order(self, order: dict[str, Any]) -> dict[str, Any]:
-        context = order.get("context", {})
-        return {
-            "status": "filled",
-            "symbol": order.get("symbol"),
-            "action": order.get("action"),
-            "quantity": float(context.get("quantity", 0.0)),
-            "price": float(context.get("price", 0.0)),
-            "filled_at": datetime.now(UTC).isoformat(),
-        }
-
-
 class _PortfolioManager:
     def __init__(self, starting_cash: float) -> None:
         self.cash = starting_cash
@@ -146,6 +107,8 @@ class _PortfolioManager:
 
 
 def _default_json_getter(url: str, params: dict[str, Any]) -> Any:
+    if not url.startswith(_ALLOWED_API_PREFIXES):
+        raise RealDataSmokeError(f"URL not in allowlist: {url}")
     query = urlencode({k: v for k, v in params.items() if v is not None})
     request_url = f"{url}?{query}" if query else url
     request = Request(
@@ -155,8 +118,9 @@ def _default_json_getter(url: str, params: dict[str, Any]) -> Any:
             "User-Agent": "AlgoTradePlanRealSmoke/1.0",
         },
     )
+    ssl_context = ssl.create_default_context()
     try:
-        with urlopen(request, timeout=20) as response:  # nosec B310
+        with urlopen(request, timeout=20, context=ssl_context) as response:  # nosec B310
             return json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError) as exc:
         raise RealDataSmokeError(f"HTTP failure for {request_url}: {exc}") from exc
@@ -288,7 +252,7 @@ def _require_dataset_coverage(source: str, datasets: dict[str, Any], allow_parti
 def _records_from_binance_klines(symbol: str, klines: list[list[Any]]) -> list[DataRecord]:
     records: list[DataRecord] = []
     for row in klines:
-        if len(row) < 5:
+        if len(row) < MIN_KLINE_FIELD_COUNT:
             continue
         open_time_ms = int(row[0])
         records.append(
@@ -342,8 +306,7 @@ def _evaluate_ema_strategy(closes: list[float], short_window: int, long_window: 
 
 
 def _optimize_ema(closes: list[float]) -> BacktestResult:
-    candidate_pairs = [(3, 9), (5, 13), (8, 21), (13, 34)]
-    valid_pairs = [(s, l) for s, l in candidate_pairs if l < len(closes) and s < l]
+    valid_pairs = [(s, l) for s, l in EMA_WINDOW_CANDIDATES if l < len(closes) and s < l]
     if not valid_pairs:
         return BacktestResult(short_window=1, long_window=2, score=0.0, signal="hold")
 
@@ -412,7 +375,7 @@ def run_real_data_autopilot(
 
     market_records = _records_from_binance_klines(binance_asset, binance_data["kline"])
     pipeline = DataIngestionPipeline(
-        source=_StaticRecordSource(market_records),
+        source=StaticMarketBatchSourcePlugin(market_records),
         storage=InMemoryDataStoragePlugin(),
         quality=RequiredFieldsQualityPlugin(),
         provenance=ExampleProvenancePlugin(),
@@ -425,7 +388,7 @@ def run_real_data_autopilot(
     intent = {
         "symbol": binance_asset,
         "action": optimized.signal,
-        "quantity": 0.01,
+        "quantity": DEFAULT_ORDER_QUANTITY,
         "price": closes[-1] if closes else 0.0,
         "strategy": {
             "short_window": optimized.short_window,
@@ -435,9 +398,9 @@ def run_real_data_autopilot(
     }
 
     flow = TradeFlow(
-        strategy=_SignalStrategy(optimized.signal),
-        risk=_RiskEngine(max_notional=1_000.0),
-        execution=_ExecutionConnector(),
+        strategy=AutopilotSignalStrategyPlugin(optimized.signal),
+        risk=NotionalGuardRiskPlugin(max_notional=DEFAULT_MAX_NOTIONAL),
+        execution=SimulatedFillExecutionConnectorPlugin(),
     )
     flow_result = flow.run(
         {
@@ -446,7 +409,7 @@ def run_real_data_autopilot(
             "quantity": intent["quantity"],
         }
     )
-    portfolio = _PortfolioManager(starting_cash=10_000.0)
+    portfolio = _PortfolioManager(starting_cash=DEFAULT_STARTING_CASH)
     portfolio_snapshot = portfolio.apply_execution(flow_result.execution)
 
     metrics.record("market_symbols_discovered", len(binance_symbols), source="binance")

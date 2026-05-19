@@ -43,9 +43,10 @@ class RunAllPhasesScriptTest(unittest.TestCase):
         module = _load_module()
 
         class _Result:
-            returncode = 0
-            stdout = "ok"
-            stderr = ""
+            def __init__(self, returncode: int):
+                self.returncode = returncode
+                self.stdout = "ok"
+                self.stderr = ""
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             report_path = Path(tmp_dir) / "phases.json"
@@ -54,7 +55,7 @@ class RunAllPhasesScriptTest(unittest.TestCase):
                 "--report-path",
                 str(report_path),
             ]
-            with patch.object(module.subprocess, "run", return_value=_Result()):
+            with patch.object(module.subprocess, "run", return_value=_Result(0)):
                 with patch.object(module.sys, "argv", argv):
                     module.main()
 
