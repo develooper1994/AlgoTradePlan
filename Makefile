@@ -13,6 +13,7 @@ test:
 
 smoke:
 	$(PYTHON) scripts/hello_world_e2e.py --mode terminal --dry-run
+	$(PYTHON) scripts/notebook_smoke_check.py
 
 onboarding:
 	@echo "See ONBOARDING.md and docs/onboarding_10min.md"
