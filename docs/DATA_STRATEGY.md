@@ -67,3 +67,12 @@ To add a new source or asset family:
 - shared interfaces: `/src/algotradeplan/plugins/data/interfaces.py`
 - ingestion pipeline scaffold: `/src/algotradeplan/plugins/data/pipeline.py`
 - domain examples: market, news, macro under `/src/algotradeplan/plugins/data/`
+- curated/research feature lane: `/src/algotradeplan/plugins/data/curated/`
+
+## Curated Lane Replay Policy
+- every curated record must carry `upstream_revision` and
+  `upstream_source_plugin_id` in metadata
+- curated outputs must be reproducible from the same canonical batch plus the
+  same provenance record
+- raw and canonical lakes remain append-only; curated regeneration never
+  mutates upstream lineage
