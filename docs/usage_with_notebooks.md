@@ -20,28 +20,34 @@ jupyter lab
 
 ## 2) Notebooks
 
-- `notebooks/algotrade_e2e_demo.ipynb` (autonomous self-boot demo using `run_all_phases.py`)
-- `notebooks/real_data_workflow.ipynb` (step-by-step real-data workflow)
+- `notebooks/01_real_data_smoke.ipynb` — `DataHub`-first workflow for source listing, coverage table, asset discovery, ingest, quality, and provenance.
+- `notebooks/02_strategy_backtest_portfolio.ipynb` — `ETL` → features → strategy/backtest → signal -> intent -> risk -> execution -> portfolio.
+- `notebooks/03_multi_source_asset_coverage.ipynb` — cross-source coverage comparison, API-key awareness, and unsupported dataset behaviour.
 
-### Which notebook runs what?
+Legacy notebook snapshots were moved under `examples/legacy/`.
 
-- **`algotrade_e2e_demo.ipynb`**: CI-aligned smoke path (`make lint/test/smoke`)
-  and full autonomous checkpoint execution (`scripts/run_all_phases.py
-  --include-live-smoke`).
-- **`real_data_workflow.ipynb`**: interactive workflow for discovery, ingestion,
-  feature engineering, strategy/backtest optimization, and signal -> intent ->
-  risk -> portfolio review.
+## 3) Example notebook cells
 
-Typical flow covered by notebooks:
-- config/custom parameter selection
-- asset discovery from connected sources
-- market/news/macro ingestion using available public endpoints
-- feature engineering preview
-- rolling-window optimize/backtest with OOS split
-- signal -> intent -> risk -> portfolio via `TradeFlow`
-- single-asset and multi-portfolio metric summaries
+```python
+from algotradeplan.data import DataHub
 
-## 3) Example notebook cells (real-data workflow)
+hub = DataHub()
+hub.sources()[:5], hub.coverage_table()[:2]
+```
+
+```python
+from algotradeplan.data import ETL
+
+etl = ETL()
+frame = etl.load_market_data(
+    source="binance_futures",
+    symbol="BTCUSDT",
+    dataset="kline",
+    timeframe="1m",
+    limit=120,
+)
+frame.head() if hasattr(frame, "head") else frame[:2]
+```
 
 ```python
 from pathlib import Path
@@ -52,41 +58,7 @@ report = run_real_data_autopilot(
     max_symbols_per_source=3,
     allow_partial=True,
 )
-report.source_inventory, report.market_sources[0], report.source_issues[:2]
-```
-
-```python
-# Asset discovery + ingest from registry-backed providers
-from src.algotradeplan.plugins.data.market import collect_market_source_data
-import json
-import ssl
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
-
-def get_json(url: str, params: dict[str, object]):
-    query = urlencode({k: v for k, v in params.items() if v is not None})
-    request_url = f"{url}?{query}" if query else url
-    request = Request(request_url, headers={"Accept": "application/json", "User-Agent": "AlgoTradePlanNotebook/1.0"})
-    timeout_seconds = 20  # increase/decrease per provider latency in production notebooks
-    with urlopen(request, timeout=timeout_seconds, context=ssl.create_default_context()) as response:
-        return json.loads(response.read().decode("utf-8"))
-
-results, issues = collect_market_source_data(
-    get_json=get_json,
-    max_symbols=3,
-    allow_partial=True,
-)
-[(r.source, r.selected_asset, len(r.datasets.get("kline", []))) for r in results], issues[:3]
-```
-
-```python
-# Strategy / intent / risk / portfolio visibility from autopilot report
-{
-    "intent": report.intent,
-    "risk_decision": report.risk_decision,
-    "portfolio": report.portfolio,
-    "metrics": report.metrics,
-}
+report.data_quality, report.provenance_manifest, report.execution_fill
 ```
 
 ## 4) Smoke + Validation Notes

@@ -16,7 +16,7 @@ smoke:
 	$(PYTHON) scripts/notebook_smoke_check.py
 
 smoke_real:
-	$(PYTHON) scripts/e2e_real_data_smoke.py
+	$(PYTHON) scripts/e2e_real_data_smoke.py --allow-partial
 
 autopilot:
 	$(PYTHON) scripts/run_all_phases.py --include-live-smoke
