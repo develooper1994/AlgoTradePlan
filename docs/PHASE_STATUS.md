@@ -22,7 +22,7 @@ The repository baseline was re-checked on 2026-05-19 with:
 
 All four commands exited successfully before this audit was finalized.
 
-## Öncelikli Hata / Önemli Eksik
+## Priority Errors / Critical Gaps
 
 1. **Phase 18 is not fully closed yet.**
    - `scripts/e2e_real_data_smoke.py` and
@@ -68,10 +68,10 @@ All four commands exited successfully before this audit was finalized.
 - **Status:** COMPLETE
 - **Evidence:** `docs/MASTER_PLAN.md`, `docs/GOVERNANCE.md`, `docs/AGENTS.md`,
   `docs/runbooks/`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Canonical roadmap and decision log exist.
   - Governance, agent model, and runbook structure are in place.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - No new code gate is required before moving on.
   - Keep documents updated whenever a later phase changes scope or evidence.
 
@@ -80,10 +80,10 @@ All four commands exited successfully before this audit was finalized.
 - **Status:** COMPLETE
 - **Evidence:** `src/algotradeplan/core/`, `src/algotradeplan/config/`,
   `tests/unit/test_core_ids.py`, `tests/unit/test_foundation_modules.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Stable ids, core types, and runtime config loader exist.
   - Deterministic unit tests cover the foundation layer.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Only regression coverage when contracts evolve.
 
 ### Phase 03 — Test harness and hello-world pipeline
@@ -91,10 +91,10 @@ All four commands exited successfully before this audit was finalized.
 - **Status:** COMPLETE
 - **Evidence:** `Makefile`, `scripts/run_tests.py`,
   `tests/smoke/test_hello_world_pipeline.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - `make lint`, `make test`, and `make smoke` are wired and green.
   - Terminal and notebook smoke paths exist.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Keep smoke coverage aligned with any new E2E path additions.
 
 ### Phase 04 — Data contracts and source abstractions
@@ -103,10 +103,10 @@ All four commands exited successfully before this audit was finalized.
 - **Evidence:** `src/algotradeplan/plugins/data/contracts.py`,
   `src/algotradeplan/plugins/data/interfaces.py`,
   `src/algotradeplan/plugins/data/{market,news,macro}/`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Shared `DataRecord` / `DataRequest` contracts exist.
   - Market, news, and macro domains have pluggable abstractions.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Future sources must keep using these interfaces.
 
 ### Phase 05 — Ingestion, storage, quality, provenance
@@ -117,10 +117,10 @@ All four commands exited successfully before this audit was finalized.
   `src/algotradeplan/plugins/data/example_quality_check.py`,
   `src/algotradeplan/plugins/data/example_provenance.py`,
   `tests/adapters/test_data_ingestion_pipeline_examples.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Quality -> storage -> provenance ingestion flow is implemented.
   - Adapter tests cover happy path and empty-batch rejection.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - New ingestion plugins must ship deterministic tests and fixtures.
 
 ### Phase 06 — Research / curated feature lane
@@ -128,10 +128,10 @@ All four commands exited successfully before this audit was finalized.
 - **Status:** COMPLETE
 - **Evidence:** `src/algotradeplan/plugins/data/curated/feature_view.py`,
   `tests/adapters/test_curated_feature_view.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Curated feature build path exists.
   - Provenance links from raw data to feature rows are tested.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Broader feature families can be added later, but this phase gate is closed.
 
 ### Phase 07 — Strategy and model skeletons
@@ -141,10 +141,10 @@ All four commands exited successfully before this audit was finalized.
   `src/algotradeplan/plugins/models/`,
   `src/algotradeplan/plugins/indicators/`,
   `tests/adapters/test_plugin_examples.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Strategy/model/indicator plugin roots and examples exist.
   - Example plugin tests are green.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Add richer strategies only after the active phase is truly closed.
 
 ### Phase 08 — Configuration and environment switching
@@ -153,10 +153,10 @@ All four commands exited successfully before this audit was finalized.
 - **Evidence:** `src/algotradeplan/config/loader.py`,
   `docs/environment_switching.md`,
   `tests/unit/test_foundation_modules.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Runtime config loader exists.
   - Environment switching guidance is documented.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Keep environment docs aligned with any new provider/runtime secrets flow.
 
 ### Phase 09 — Observability and debug foundation
@@ -166,10 +166,10 @@ All four commands exited successfully before this audit was finalized.
   `src/algotradeplan/observability/metrics.py`,
   `docs/runbooks/observability_debug.md`,
   `tests/unit/test_observability.py`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Structured logging and metric collection exist.
   - Sensitive-field redaction is tested.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Expand metrics only if new active-phase behavior requires it.
 
 ### Phase 10 — Risk controls and execution readiness
@@ -180,10 +180,10 @@ All four commands exited successfully before this audit was finalized.
   `src/algotradeplan/plugins/connectors/simulated_fill_connector.py`,
   `tests/adapters/test_trade_flow.py`,
   `docs/runbooks/emergency_stop.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Strategy -> risk -> execution orchestration exists.
   - Emergency-stop and risk rejection cases are tested.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Real broker/exchange connectors can wait until after the active phase closes.
 
 ### Phase 11 — Reconciliation and state recovery
@@ -192,10 +192,10 @@ All four commands exited successfully before this audit was finalized.
 - **Evidence:** `src/algotradeplan/plugins/reconciliation/drift_reconciler.py`,
   `tests/adapters/test_drift_reconciler.py`,
   `docs/runbooks/state_recovery.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Drift detection and recovery actions are implemented.
   - Deterministic reconciliation tests exist.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Add new recovery actions only when new execution states are introduced.
 
 ### Phase 12 — Backtest, simulation, dry-run promotion
@@ -204,10 +204,10 @@ All four commands exited successfully before this audit was finalized.
 - **Evidence:** `src/algotradeplan/backtest/replay.py`,
   `tests/adapters/test_replay_harness.py`,
   `docs/runbooks/dry_run_promotion.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Replay harness and promotion gate exist.
   - Parity success/failure scenarios are covered by tests.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Add deeper scenario sets later without reopening the gate.
 
 ### Phase 13 — Deployment workflow and operational readiness
@@ -216,10 +216,10 @@ All four commands exited successfully before this audit was finalized.
 - **Evidence:** `scripts/deploy_check.py`,
   `tests/unit/test_deploy_check.py`,
   `docs/runbooks/deployment_rollback.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Deployment readiness script exists.
   - Rollback guidance is documented.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Keep checks aligned if deployment prerequisites change.
 
 ### Phase 14 — Security, dependency, compliance guardrails
@@ -229,10 +229,10 @@ All four commands exited successfully before this audit was finalized.
   `tests/unit/test_security_check.py`,
   `docs/dependency_policy.md`,
   `docs/compliance.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Security/dependency gate exists and is tested.
   - Compliance baseline is documented.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Refresh allowlists and policy when dependencies/providers change.
 
 ### Phase 15 — Extension lifecycle and contributor workflow
@@ -240,20 +240,20 @@ All four commands exited successfully before this audit was finalized.
 - **Status:** COMPLETE
 - **Evidence:** `docs/extending.md`, `CONTRIBUTING.md`,
   `tests/fixtures/data_ingestion_assets.json`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Plugin roots and contributor checklist are documented.
   - Fixture-backed extension guidance exists.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Keep extension docs synchronized with any new plugin root or source family.
 
 ### Phase 16 — Production acceptance and continuous governance
 
 - **Status:** COMPLETE
 - **Evidence:** `docs/production_acceptance.md`, `docs/PHASE_STATUS.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Approved evidence for phases 01-16 is documented.
   - Governance cadence and rollback rule are written down.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - Revoke acceptance if evidence regresses.
 
 ### Phase 17 — Data-first asset/source expansion hardening
@@ -263,11 +263,11 @@ All four commands exited successfully before this audit was finalized.
   `tests/adapters/test_data_ingestion_pipeline_examples.py`,
   `tests/fixtures/data_ingestion_assets.json`,
   `ONBOARDING.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Market/news/macro examples are present.
   - Fixture-backed adapter coverage exists.
   - Onboarding and runbook checks include the data-first extension flow.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - New asset/source additions must continue to ship fixtures, tests, and
     runbook references.
 
@@ -281,12 +281,12 @@ All four commands exited successfully before this audit was finalized.
   `tests/unit/test_run_all_phases.py`,
   `notebooks/algotrade_e2e_demo.ipynb`,
   `docs/usage_with_notebooks.md`
-- **TAMAMLANANLAR**
+- **Completed / TAMAMLANANLAR**
   - Autonomous checkpoint runner exists.
   - Real-data smoke script exists and writes an artifact report.
   - Notebook path and notebook guide exist.
   - Unit tests cover mocked happy/failure autopilot paths.
-- **YAPILACAKLAR**
+- **Remaining / YAPILACAKLAR**
   - **New code:** extract hard-coded source discovery/fetch logic into plugin or
     registry-based adapters so new sources do not require editing the autopilot
     file.
