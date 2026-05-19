@@ -9,7 +9,7 @@ lint:
 	$(PYTHON) -m compileall src tests scripts
 
 test:
-	$(PYTHON) -m unittest discover -s tests -v
+	$(PYTHON) scripts/run_tests.py
 
 smoke:
 	$(PYTHON) scripts/hello_world_e2e.py --mode terminal --dry-run
