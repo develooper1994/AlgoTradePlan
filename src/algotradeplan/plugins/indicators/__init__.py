@@ -1,0 +1,1 @@
+"""indicators plugin examples."""

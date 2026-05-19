@@ -1,0 +1,1 @@
+"""strategies plugin examples."""

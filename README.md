@@ -53,11 +53,14 @@ make smoke
 
 ## Key Entry Points
 - Architecture: `ARCHITECTURE.md`
+- Agent model and plugin ownership: `AGENTS.md`
 - Contributor workflow: `CONTRIBUTING.md`
 - Maintainer policy: `MAINTAINERS.md`
 - Documentation index: `docs/README.md`
 - Bootstrap + E2E scripts: `scripts/bootstrap.sh`, `scripts/hello_world_e2e.py`
+- Test runner script: `scripts/run_tests.py`
 - Environment and secrets flow: `docs/environment_switching.md`
+- CI workflow: `.github/workflows/ci.yml`
 
 ## Tech Discussion (Initial)
 - **Core + orchestration**: Python first, modular monolith structure

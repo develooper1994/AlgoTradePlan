@@ -7,6 +7,9 @@
 
 ## Canonical Module Boundaries
 - `core`: ids, types, contracts, clock
+- `config`: runtime loader scaffolds and environment parsing
+- `bus`: in-process event bus bootstrap point
+- `audit`: event-store scaffold for deterministic trails
 - `data_ingestion`: csv/excel/tabular adapters
 - `plugins`: strategy/model/data/indicator/connector/risk extension points
 - `tests_support`: fake/mock adapters for deterministic testing
