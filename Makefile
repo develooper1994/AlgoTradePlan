@@ -13,6 +13,7 @@ test:
 
 smoke:
 	$(PYTHON) scripts/hello_world_e2e.py --mode terminal --dry-run
+	$(PYTHON) scripts/notebook_smoke_check.py
 
 smoke_real:
 	$(PYTHON) scripts/e2e_real_data_smoke.py

@@ -76,6 +76,7 @@ risk -> portfolio flow. Report output:
 - Maintainer policy: `MAINTAINERS.md`
 - Documentation index: `docs/README.md`
 - Onboarding: `ONBOARDING.md`, `docs/onboarding_10min.md`
+- Notebook usage: `docs/usage_with_notebooks.md`, `notebooks/real_data_workflow.ipynb`
 - Bootstrap + E2E scripts: `scripts/bootstrap.sh`, `scripts/hello_world_e2e.py`
 - Autonomous pipeline scripts: `scripts/run_all_phases.py`, `scripts/e2e_real_data_smoke.py`
 - Test runner script: `scripts/run_tests.py`

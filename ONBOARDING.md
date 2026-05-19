@@ -12,6 +12,7 @@
 - summary of prior recommendations and phase direction: `docs/PHASE_RECAP.md`
 - phase rules and decision log: `docs/MASTER_PLAN.md`
 - active/next phase status: `docs/PHASE_STATUS.md`
+- notebook workflow: `docs/usage_with_notebooks.md`
 - extension workflow: `docs/extending.md`
 - runbook index: `docs/runbook_masterlist.md`
 

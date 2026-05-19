@@ -1,13 +1,43 @@
-# Usage with Jupyter Notebooks
+# Usage with Notebooks
 
-1. Create environment and install project dependencies.
-2. Start JupyterLab: `jupyter lab`
-3. Open `notebooks/algotrade_e2e_demo.ipynb`
-4. Run cells top-to-bottom:
-   - baseline checks (`make lint`, `make test`, `make smoke`)
-   - autonomous phase runner (`scripts/run_all_phases.py`)
-   - real-data smoke pipeline (`scripts/e2e_real_data_smoke.py`)
-   - report inspection from `artifacts/real_data_smoke_report.json`
+This guide explains how to run the framework from notebooks for both smoke and full workflow scenarios.
 
-The notebook uses real upstream APIs for discovery and data pulls (market, news,
-macro). It does not use sample fixtures for the live smoke path.
+## 1) Environment Setup
+
+```bash
+make bootstrap
+make lint
+make test
+make smoke
+```
+
+To launch Jupyter:
+
+```bash
+python -m pip install jupyterlab
+jupyter lab
+```
+
+## 2) Notebooks
+
+- `notebooks/algotrade_e2e_demo.ipynb` (autonomous self-boot demo using `run_all_phases.py`)
+- `notebooks/real_data_workflow.ipynb` (step-by-step real-data workflow)
+
+Typical flow covered by notebooks:
+- config/custom parameter selection
+- asset discovery from connected sources
+- market/news/macro ingestion using available public endpoints
+- feature engineering preview
+- rolling-window optimize/backtest with OOS split
+- signal -> intent -> risk -> portfolio via `TradeFlow`
+- single-asset and multi-portfolio metric summaries
+
+## 3) Smoke + Validation Notes
+
+- If network or third-party APIs are unavailable, notebook cells should fail with explicit errors.
+- Notebook smoke is validated by `make smoke` (including `scripts/notebook_smoke_check.py`).
+- Autonomous real-data path can be executed with:
+
+```bash
+python scripts/run_all_phases.py --include-live-smoke
+```
