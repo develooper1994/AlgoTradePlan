@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from importlib import import_module
 from pkgutil import walk_packages
-from typing import Any
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -13,6 +14,7 @@ class PluginDescriptor:
     plugin_id: str
     module: str
     qualname: str
+    class_name: str
     category: str
 
 
@@ -20,6 +22,21 @@ class PluginDescriptor:
 class PluginDiscoveryIssue:
     module: str
     reason: str
+
+
+class PluginClass(Protocol):
+    plugin_id: str
+
+
+_CATEGORY_ALIASES = {
+    "strategies": "strategy",
+    "connectors": "execution_connector",
+}
+
+
+def _resolve_category(module_parts: list[str]) -> str:
+    raw = module_parts[3] if len(module_parts) > 3 else "unknown"
+    return _CATEGORY_ALIASES.get(raw, raw)
 
 
 def discover_plugins(
@@ -48,11 +65,12 @@ def discover_plugins(
             if not isinstance(plugin_id, str) or not plugin_id:
                 continue
 
-            category = module_parts[3] if len(module_parts) > 3 else "unknown"
+            category = _resolve_category(module_parts)
             descriptor = PluginDescriptor(
                 plugin_id=plugin_id,
                 module=module_name,
                 qualname=f"{module_name}.{attr.__name__}",
+                class_name=attr.__name__,
                 category=category,
             )
             existing = registry.get(plugin_id)
@@ -64,10 +82,31 @@ def discover_plugins(
     return registry, issues
 
 
-def load_plugin_class(plugin_id: str, root_package: str = "src.algotradeplan.plugins") -> type[Any]:
-    registry, _ = discover_plugins(root_package=root_package)
+@lru_cache(maxsize=None)
+def _cached_discovery_result(
+    root_package: str,
+) -> tuple[dict[str, PluginDescriptor], tuple[PluginDiscoveryIssue, ...]]:
+    registry, issues = discover_plugins(root_package=root_package)
+    return registry, tuple(issues)
+
+
+def discovery_issues(root_package: str = "src.algotradeplan.plugins") -> list[PluginDiscoveryIssue]:
+    _, issues = _cached_discovery_result(root_package)
+    return list(issues)
+
+
+def load_plugin_class(
+    plugin_id: str,
+    root_package: str = "src.algotradeplan.plugins",
+) -> type[PluginClass]:
+    registry, _ = _cached_discovery_result(root_package)
     descriptor = registry.get(plugin_id)
     if descriptor is None:
         raise KeyError(f"plugin_id '{plugin_id}' not found")
     module = import_module(descriptor.module)
-    return getattr(module, descriptor.qualname.rsplit(".", 1)[-1])
+    plugin_class = getattr(module, descriptor.class_name, None)
+    if plugin_class is None:
+        raise KeyError(
+            f"class '{descriptor.class_name}' for plugin_id '{plugin_id}' not found in {descriptor.module}"
+        )
+    return plugin_class
