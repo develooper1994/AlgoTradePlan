@@ -36,6 +36,7 @@ This document is the canonical phased blueprint for AlgoTradePlan. Code should a
 | 15 | Extension lifecycle and contributor workflow | `/docs/phases/15.md` |
 | 16 | Production acceptance and continuous governance | `/docs/phases/16.md` |
 | 17 | Data-first asset/source expansion hardening | `/docs/phases/17.md` |
+| 18 | Autonomous self-boot real-data pipeline | `/docs/phases/18.md` |
 
 ## Active Phase Rule
 - only the active phase may introduce new modules or interfaces

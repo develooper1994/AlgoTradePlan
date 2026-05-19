@@ -13,6 +13,7 @@
 - `onboarding_10min.md`: first 10-minute path
 - `../ONBOARDING.md`: root onboarding flow tied to phase/runbook checks
 - `quickstart.md`: bootstrap and hello-world flow
+- `usage_with_notebooks.md`: end-to-end notebook execution guide
 - `compliance.md`: privacy/KYC/legal baseline
 - `extensibility.md`: plugin and test adapter guide
 - `production_acceptance.md`: Phase 16 production acceptance evidence
