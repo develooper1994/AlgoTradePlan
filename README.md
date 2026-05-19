@@ -43,6 +43,11 @@ This repository now includes:
 14. Smoke suite + migration + dry-run/simulate/live docs
 15. Contribution, issue/PR policy, extension guidance
 16. Runbook masterlist
+17. Data-first asset/source expansion hardening
+18. Autonomous self-boot real-data pipeline
+
+See `docs/PHASE_STATUS.md` for the detailed per-phase audit with
+`TAMAMLANANLAR`, `YAPILACAKLAR`, and priority blockers.
 
 ## Quick Start
 ```bash
@@ -76,7 +81,8 @@ risk -> portfolio flow. Report output:
 - Maintainer policy: `MAINTAINERS.md`
 - Documentation index: `docs/README.md`
 - Onboarding: `ONBOARDING.md`, `docs/onboarding_10min.md`
-- Notebook usage: `docs/usage_with_notebooks.md`, `notebooks/real_data_workflow.ipynb`
+- Notebook usage: `docs/usage_with_notebooks.md`,
+  `notebooks/algotrade_e2e_demo.ipynb`, `notebooks/real_data_workflow.ipynb`
 - Bootstrap + E2E scripts: `scripts/bootstrap.sh`, `scripts/hello_world_e2e.py`
 - Autonomous pipeline scripts: `scripts/run_all_phases.py`, `scripts/e2e_real_data_smoke.py`
 - Test runner script: `scripts/run_tests.py`
