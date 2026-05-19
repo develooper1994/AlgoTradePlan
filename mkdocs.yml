@@ -2,8 +2,12 @@ site_name: AlgoTradePlan Docs
 nav:
   - Home: docs/README.md
   - Quickstart: docs/onboarding_10min.md
-  - Architecture: ARCHITECTURE.md
+  - Master Plan: docs/MASTER_PLAN.md
+  - Data Strategy: docs/DATA_STRATEGY.md
+  - Architecture: docs/ARCHITECTURE.md
+  - Agents: docs/AGENTS.md
+  - Governance: docs/GOVERNANCE.md
   - Environment: docs/environment_switching.md
   - Storage: docs/storage_provenance.md
-  - Extensibility: docs/extensibility.md
+  - Extensibility: docs/extending.md
   - Dependency Policy: docs/dependency_policy.md

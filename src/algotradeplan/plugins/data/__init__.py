@@ -1,1 +1,1 @@
-"""Data plugin examples."""
+"""Data plugin examples and ingestion scaffolds."""

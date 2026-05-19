@@ -52,8 +52,11 @@ make smoke
 ```
 
 ## Key Entry Points
-- Architecture: `ARCHITECTURE.md`
-- Agent model and plugin ownership: `AGENTS.md`
+- Master plan: `docs/MASTER_PLAN.md`
+- Data strategy: `docs/DATA_STRATEGY.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- Agent model and plugin ownership: `docs/AGENTS.md`
+- Governance: `docs/GOVERNANCE.md`
 - Contributor workflow: `CONTRIBUTING.md`
 - Maintainer policy: `MAINTAINERS.md`
 - Documentation index: `docs/README.md`

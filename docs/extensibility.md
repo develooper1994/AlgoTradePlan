@@ -1,5 +1,7 @@
 # Extensibility Guide
 
+Canonical extension guidance now lives in `/docs/extending.md`.
+
 Plugin folders:
 - `plugins/strategies`
 - `plugins/models`
@@ -18,3 +20,4 @@ Examples:
 - plugin examples: `src/algotradeplan/plugins/**/example_*.py`
 - tests: `tests/adapters/test_plugin_examples.py`
 - runbook: `docs/runbook_masterlist.md`
+- detailed guide: `docs/extending.md`
