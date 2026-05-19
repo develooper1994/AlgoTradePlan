@@ -1,5 +1,13 @@
 # Documentation Index
 
+- `MASTER_PLAN.md`: canonical phased blueprint and decision log
+- `DATA_STRATEGY.md`: multi-domain ingestion, storage, quality, and provenance strategy
+- `ARCHITECTURE.md`: current architecture diagram and module boundaries
+- `AGENTS.md`: agent contracts, automation policy, and working rules
+- `GOVERNANCE.md`: review, deploy, and change-management rules
+- `extending.md`: canonical plugin extension guide
+- `phases/`: per-phase goals, requirements, validation, and tests
+- `runbooks/`: operational and incident runbook templates/examples
 - `onboarding_10min.md`: first 10-minute path
 - `quickstart.md`: bootstrap and hello-world flow
 - `compliance.md`: privacy/KYC/legal baseline

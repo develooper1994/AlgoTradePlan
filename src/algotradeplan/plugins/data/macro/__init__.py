@@ -1,0 +1,1 @@
+"""Macro data plugin examples."""

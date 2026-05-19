@@ -2,6 +2,7 @@
 
 CSV/Excel/tabular ingestion utilities for quick research experiments.
 
-- Extension guide: `/docs/extensibility.md`
+- Extension guide: `/docs/extending.md`
 - Runbook: `/docs/runbook_masterlist.md`
 - Test example: `/tests/adapters/test_plugin_examples.py`
+- Canonical data strategy: `/docs/DATA_STRATEGY.md`
