@@ -39,8 +39,15 @@ make test             # run full unit/adapter/smoke test suite
 make smoke            # dry-run hello-world + notebook smoke
 make runbook_check    # verify runbook index exists
 python scripts/framework_status.py
+python scripts/framework_status.py --next-actions-only --score
+python scripts/framework_status.py --write-doc --write-plan
 python scripts/tutorial_mode.py --all --offline
+python scripts/tutorial_mode.py --all --offline --pretty
+python scripts/tutorial_mode.py --all --offline --markdown
+python scripts/tutorial_mode.py --all --offline --write-doc
 python scripts/generate_data_coverage_doc.py
+python scripts/refresh_framework_artifacts.py --skip-live
+make refresh_artifacts
 ```
 
 ## DataHub / ETL
@@ -53,6 +60,11 @@ hub.sources()
 hub.coverage_table()
 hub.dataset_status("coingecko", "kline")
 hub.sources_for(dataset="news")
+hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False)
+hub.explain_source("coingecko")
+hub.explain_dataset("funding")
+hub.dataset_sources_matrix(["kline", "news", "macro", "fundamentals"])
+hub.asset_sources_matrix(["crypto_spot", "equity", "macro"])
 hub.discover_assets(source="binance_futures", limit=10)
 hub.ingest(source="coingecko", symbol="bitcoin", datasets=["tick", "kline"], allow_partial=True)
 
@@ -140,6 +152,7 @@ Coverage snapshot:
 - `docs/quickstart.md` — step-by-step usage
 - `docs/tutorial.md` — CLI + notebook tutorial walkthrough
 - `docs/framework_status.md` — generated framework status / next actions
+- `docs/next_actions.md` — generated priority plan from framework status
 - `docs/data_source_coverage.md` — source/dataset implementation coverage matrix
 - `docs/extending.md` — adding new plugins
 - `docs/usage_with_notebooks.md` — notebook workflow guide

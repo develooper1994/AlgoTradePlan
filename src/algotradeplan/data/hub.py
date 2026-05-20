@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import ssl
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import UTC, datetime
@@ -19,9 +20,14 @@ from src.algotradeplan.data.provenance import ManifestProvenanceTracker
 from src.algotradeplan.data.quality import CanonicalDataQualityPlugin
 from src.algotradeplan.data.query import (
     asset_status_for_source,
+    asset_sources_matrix,
     available_datasets,
+    best_sources_for,
     compare_sources,
+    dataset_sources_matrix,
     dataset_status_for_source,
+    explain_dataset,
+    explain_source,
     source_summary,
     sources_for,
     supports,
@@ -149,6 +155,38 @@ class DataHub:
     def source_summary(self, source: str) -> dict[str, Any]:
         return source_summary(self._capabilities, source)
 
+    def best_sources_for(
+        self,
+        *,
+        dataset: str,
+        asset_class: str | None = None,
+        prefer_live: bool = True,
+        allow_api_key: bool = True,
+        include_metadata_only: bool = False,
+        limit: int | None = None,
+    ) -> list[dict[str, str]]:
+        return best_sources_for(
+            self._capabilities,
+            dataset=dataset,
+            asset_class=asset_class,
+            prefer_live=prefer_live,
+            allow_api_key=allow_api_key,
+            include_metadata_only=include_metadata_only,
+            limit=limit,
+        )
+
+    def explain_source(self, source: str) -> dict[str, Any]:
+        return explain_source(self._capabilities, source)
+
+    def explain_dataset(self, dataset: str) -> dict[str, Any]:
+        return explain_dataset(self._capabilities, dataset)
+
+    def dataset_sources_matrix(self, datasets: list[str] | None = None) -> list[dict[str, str]]:
+        return dataset_sources_matrix(self._capabilities, datasets)
+
+    def asset_sources_matrix(self, asset_classes: list[str] | None = None) -> list[dict[str, str]]:
+        return asset_sources_matrix(self._capabilities, asset_classes)
+
     def discover_assets(self, source: str, limit: int = 10, **filters: Any) -> list[str]:
         capability = self._capabilities[source]
         if not capability.supports_discovery:
@@ -173,7 +211,23 @@ class DataHub:
     ) -> IngestResult:
         capability = self._capabilities[source]
         requested = [canonical_dataset_name(dataset) for dataset in datasets]
-        fetchable = [dataset for dataset in requested if self.dataset_status(source, dataset) not in {"unsupported", "metadata_only"}]
+        source_issues_by_dataset: dict[str, str] = {}
+        fetchable: list[str] = []
+        api_key_required_env = capability.api_key_env if capability.requires_api_key else None
+        api_key_missing = bool(api_key_required_env and not os.getenv(api_key_required_env))
+        for dataset in requested:
+            status = self.dataset_status(source, dataset)
+            if status == "unsupported":
+                source_issues_by_dataset[dataset] = f"unsupported_dataset:{dataset}"
+                continue
+            if status == "metadata_only":
+                source_issues_by_dataset[dataset] = f"metadata_only_dataset:{dataset}"
+                continue
+            if status in {"api_key", "api_key_or_plan"} and api_key_missing and api_key_required_env:
+                source_issues_by_dataset[dataset] = f"api_key_required:{api_key_required_env}"
+                continue
+            fetchable.append(dataset)
+
         raw_datasets = self._fetch_raw(
             source=source,
             symbol=symbol,
@@ -189,13 +243,9 @@ class DataHub:
         asset_type = capability.asset_classes[0] if capability.asset_classes else "unknown"
 
         for dataset in requested:
-            status = self.dataset_status(source, dataset)
-            if status == "unsupported":
-                issues.append({"source": source, "reason": f"unsupported_dataset:{dataset}"})
-                dataset_coverage[dataset] = 0
-                continue
-            if status == "metadata_only":
-                issues.append({"source": source, "reason": f"metadata_only_dataset:{dataset}"})
+            reason = source_issues_by_dataset.get(dataset)
+            if reason:
+                issues.append({"source": source, "reason": reason})
                 dataset_coverage[dataset] = 0
                 continue
             raw_payload = raw_datasets.get(dataset)

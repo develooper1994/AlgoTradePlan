@@ -124,3 +124,149 @@ def source_summary(capabilities: dict[str, SourceCapability], source: str) -> di
         "notes": capability.notes or capability.rate_limit_notes,
         "extra_metadata": dict(capability.extra_metadata),
     }
+
+
+def best_sources_for(
+    capabilities: dict[str, SourceCapability],
+    *,
+    dataset: str,
+    asset_class: str | None = None,
+    prefer_live: bool = True,
+    allow_api_key: bool = True,
+    include_metadata_only: bool = False,
+    limit: int | None = None,
+) -> list[dict[str, str]]:
+    canonical_dataset = canonical_dataset_name(dataset)
+    canonical_asset = _canonical_asset_class(asset_class) if asset_class else None
+    dataset_priority = {
+        "live": 0 if prefer_live else 1,
+        "partial": 1 if prefer_live else 0,
+        "fallback": 2,
+        "api_key": 3,
+        "api_key_or_plan": 4,
+        "metadata_only": 5,
+    }
+    rows: list[tuple[int, str, dict[str, str]]] = []
+    for source_name in sorted(capabilities):
+        capability = capabilities[source_name]
+        dataset_value = dataset_status(capability, canonical_dataset)
+        if dataset_value == "unsupported":
+            continue
+        if dataset_value in {"api_key", "api_key_or_plan"} and not allow_api_key:
+            continue
+        if dataset_value == "metadata_only" and not include_metadata_only:
+            continue
+        if dataset_value not in dataset_priority:
+            continue
+        asset_value = asset_status(capability, canonical_asset) if canonical_asset else "n/a"
+        if canonical_asset and asset_value == "unsupported":
+            continue
+        row = {
+            "source": capability.source,
+            "dataset_status": dataset_value,
+            "asset_status": asset_value,
+            "requires_api_key": "yes" if capability.requires_api_key else "no",
+            "implementation_status": capability.implementation_status,
+            "notes": capability.notes or capability.rate_limit_notes,
+        }
+        rows.append((dataset_priority[dataset_value], capability.source, row))
+
+    ranked = [item[2] for item in sorted(rows, key=lambda item: (item[0], item[1]))]
+    if limit is not None and limit < 0:
+        raise ValueError("limit must be non-negative")
+    if limit is None:
+        return ranked
+    return ranked[:limit]
+
+
+def explain_source(capabilities: dict[str, SourceCapability], source: str) -> dict[str, Any]:
+    summary = source_summary(capabilities, source)
+    capability = _get_capability(capabilities, source)
+    summary["dataset_rankings"] = best_sources_for(
+        capabilities,
+        dataset="kline",
+        asset_class=capability.asset_classes[0] if capability.asset_classes else None,
+        include_metadata_only=True,
+        limit=10,
+    )
+    return summary
+
+
+def explain_dataset(capabilities: dict[str, SourceCapability], dataset: str) -> dict[str, Any]:
+    canonical = canonical_dataset_name(dataset)
+    by_status: dict[str, list[str]] = {
+        "live": [],
+        "partial": [],
+        "fallback": [],
+        "api_key": [],
+        "api_key_or_plan": [],
+        "metadata_only": [],
+    }
+    for source_name in sorted(capabilities):
+        status = dataset_status_for_source(capabilities, source_name, canonical)
+        if status in by_status:
+            by_status[status].append(source_name)
+    return {
+        "dataset": canonical,
+        "status_index": by_status,
+        "best_sources_no_api_key": best_sources_for(
+            capabilities,
+            dataset=canonical,
+            allow_api_key=False,
+            include_metadata_only=False,
+            limit=5,
+        ),
+        "best_sources_with_api_key": best_sources_for(
+            capabilities,
+            dataset=canonical,
+            allow_api_key=True,
+            include_metadata_only=False,
+            limit=5,
+        ),
+    }
+
+
+def dataset_sources_matrix(
+    capabilities: dict[str, SourceCapability],
+    datasets: list[str] | None = None,
+) -> list[dict[str, str]]:
+    names = (
+        sorted({canonical_dataset_name(dataset) for dataset in datasets})
+        if datasets
+        else sorted({canonical_dataset_name(item) for capability in capabilities.values() for item in capability.datasets})
+    )
+    rows: list[dict[str, str]] = []
+    for source_name in sorted(capabilities):
+        capability = capabilities[source_name]
+        row = {
+            "source": capability.source,
+            "implementation_status": capability.implementation_status,
+            "requires_api_key": "yes" if capability.requires_api_key else "no",
+        }
+        for name in names:
+            row[name] = dataset_status(capability, name)
+        rows.append(row)
+    return rows
+
+
+def asset_sources_matrix(
+    capabilities: dict[str, SourceCapability],
+    asset_classes: list[str] | None = None,
+) -> list[dict[str, str]]:
+    names = (
+        sorted({_canonical_asset_class(asset_class) for asset_class in asset_classes})
+        if asset_classes
+        else sorted({item.lower() for capability in capabilities.values() for item in capability.asset_classes})
+    )
+    rows: list[dict[str, str]] = []
+    for source_name in sorted(capabilities):
+        capability = capabilities[source_name]
+        row = {
+            "source": capability.source,
+            "implementation_status": capability.implementation_status,
+            "requires_api_key": "yes" if capability.requires_api_key else "no",
+        }
+        for name in names:
+            row[name] = asset_status(capability, name)
+        rows.append(row)
+    return rows

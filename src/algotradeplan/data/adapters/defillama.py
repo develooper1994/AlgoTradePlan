@@ -43,6 +43,7 @@ class DefiLlamaAdapter:
                 "base": str(protocol.get("symbol") or symbol).upper(),
                 "date": "",
                 "rates": {str(item.get("date")): float(item.get("totalLiquidityUSD") or 0.0) for item in flattened},
+                "metadata": {"series_type": "tvl_by_chain", "protocol": symbol},
             }
         if "fundamentals" in datasets:
             result["fundamentals"] = [
@@ -51,6 +52,7 @@ class DefiLlamaAdapter:
                     "tvl": float(protocol.get("tvl") or 0.0),
                     "mcap": float(protocol.get("mcap") or 0.0),
                     "name": protocol.get("name") or symbol,
+                    "metadata": {"source": "defillama_protocols", "field_group": "protocol_snapshot"},
                 }
             ]
         return result

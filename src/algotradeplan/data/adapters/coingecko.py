@@ -54,7 +54,11 @@ class CoinGeckoAdapter:
                         close,
                         close,
                         volume,
-                        {"synthetic_ohlcv": True, "source_granularity": "close-based market_chart buckets"},
+                        {
+                            "synthetic_ohlcv": True,
+                            "source_granularity": "close-based market_chart buckets",
+                            "note": "Synthetic OHLCV derived from close/volume values; not exchange-native candle OHLC bars.",
+                        },
                     ]
                 )
             result["kline"] = klines

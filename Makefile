@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: bootstrap lint test smoke smoke_real autopilot docs onboarding runbook_check
+.PHONY: bootstrap lint test smoke smoke_real autopilot docs onboarding runbook_check refresh_artifacts
 
 bootstrap:
 	bash scripts/bootstrap.sh
@@ -33,3 +33,6 @@ runbook_check:
 
 docs:
 	@echo "Use mkdocs serve/build when mkdocs is installed"
+
+refresh_artifacts:
+	$(PYTHON) scripts/refresh_framework_artifacts.py
