@@ -1,7 +1,7 @@
 # Framework Status
 
-Generated: 2026-05-20T09:13:34.147198+00:00
-framework_score: 80/100
+Generated: 2026-05-20T09:53:46.384656+00:00
+framework_score: 78/100
 
 ## Module Status
 - [x] **DataHub** — Capability query API and ETL facade are available.
@@ -35,6 +35,7 @@ framework_score: 80/100
 - Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).
 - Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).
 - Run offline tutorial walkthrough (`python scripts/tutorial_mode.py --all --offline --write-doc`).
+- Refresh stale or missing artifacts listed in the artifact state section.
 - Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).
 ### P1
 - Add and document recommend_sources / best_sources_for query recipes in tutorial and quickstart docs.
@@ -66,7 +67,7 @@ framework_score: 80/100
 - docs/data_source_coverage.md: fresh (0d old)
 - docs/source_recommendations.md: fresh (0d old)
 - artifacts/tutorial/tutorial_walkthrough.md: fresh (0d old)
-- artifacts/real_data_smoke_report.json: fresh (0d old)
+- artifacts/real_data_smoke_report.json: missing
 
 ## Risks / Technical Debt
 - API-key and plan-scoped providers can report broader theoretical coverage than current implemented datasets.

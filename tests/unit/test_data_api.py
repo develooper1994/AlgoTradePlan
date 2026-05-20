@@ -374,6 +374,7 @@ class DataHubApiTest(unittest.TestCase):
             self.assertIn("## Dataset → Sources index", content)
             self.assertIn("## Asset class → Sources index", content)
             self.assertIn("## Recommended Sources by Use Case", content)
+            self.assertIn("API key env", content)
             self.assertIn("## Live fetch sources", content)
             self.assertIn("## Public / no-key providers", content)
             self.assertIn("## API-key providers", content)
