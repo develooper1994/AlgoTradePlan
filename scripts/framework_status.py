@@ -33,6 +33,16 @@ EXPECTED_TESTS = [
     REPO_ROOT / "tests" / "unit" / "test_data_api.py",
     REPO_ROOT / "tests" / "unit" / "test_framework_scripts.py",
 ]
+SCORE_BASE = 40
+SCORE_COMPONENT_CAP = 35
+SCORE_COMPONENT_WEIGHT = 4
+SCORE_LIVE_CAP = 10
+SCORE_FALLBACK_CAP = 5
+SCORE_METADATA_PENALTY_CAP = 20
+SCORE_METADATA_PENALTY_WEIGHT = 2
+SCORE_ARTIFACT_PENALTY_CAP = 10
+SCORE_ARTIFACT_PENALTY_WEIGHT = 2
+SCORE_MAX = 100
 
 
 def _redact_sensitive_fields(value: object) -> object:
@@ -97,13 +107,20 @@ def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
 
 
 def _compute_score(report: dict[str, Any]) -> int:
-    score = 40
-    score += min(35, len(report["completed_components"]) * 4)
-    score += min(10, report["coverage_summary"]["live_sources_count"])
-    score += min(5, report["coverage_summary"]["fallback_sources_count"])
-    score -= min(20, report["coverage_summary"]["metadata_only_sources_count"] * 2)
-    score -= min(10, len([item for item in report["artifact_state"] if item["status"] in {"missing", "stale"}]) * 2)
-    return max(0, min(100, score))
+    score = SCORE_BASE
+    score += min(SCORE_COMPONENT_CAP, len(report["completed_components"]) * SCORE_COMPONENT_WEIGHT)
+    score += min(SCORE_LIVE_CAP, report["coverage_summary"]["live_sources_count"])
+    score += min(SCORE_FALLBACK_CAP, report["coverage_summary"]["fallback_sources_count"])
+    score -= min(
+        SCORE_METADATA_PENALTY_CAP,
+        report["coverage_summary"]["metadata_only_sources_count"] * SCORE_METADATA_PENALTY_WEIGHT,
+    )
+    score -= min(
+        SCORE_ARTIFACT_PENALTY_CAP,
+        len([item for item in report["artifact_state"] if item["status"] in {"missing", "stale"}])
+        * SCORE_ARTIFACT_PENALTY_WEIGHT,
+    )
+    return max(0, min(SCORE_MAX, score))
 
 
 def build_status_report() -> dict[str, Any]:

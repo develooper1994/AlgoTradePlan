@@ -55,7 +55,7 @@ class CanonicalDataQualityPlugin:
                         numeric_values[field] = float(record.payload.get(field, 0.0))
                     except (TypeError, ValueError):
                         issues.append(f"Non-numeric {field} in {record.key}")
-                try:
+                if all(field in numeric_values for field in ("open", "high", "low", "close")):
                     open_value = numeric_values["open"]
                     high_value = numeric_values["high"]
                     low_value = numeric_values["low"]
@@ -66,7 +66,7 @@ class CanonicalDataQualityPlugin:
                         issues.append(f"Inconsistent OHLC low in {record.key}")
                     if high_value < low_value:
                         issues.append(f"Inconsistent OHLC range in {record.key}")
-                except KeyError:
+                else:
                     issues.append(f"Non-numeric OHLC values in {record.key}")
                 for field, value in numeric_values.items():
                     if value < 0:

@@ -172,10 +172,10 @@ def best_sources_for(
         rows.append((dataset_priority[dataset_value], capability.source, row))
 
     ranked = [item[2] for item in sorted(rows, key=lambda item: (item[0], item[1]))]
+    if limit is not None and limit < 0:
+        raise ValueError("limit must be non-negative")
     if limit is None:
         return ranked
-    if limit < 0:
-        raise ValueError("limit must be non-negative")
     return ranked[:limit]
 
 
