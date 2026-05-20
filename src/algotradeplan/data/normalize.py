@@ -17,6 +17,9 @@ from src.algotradeplan.core.canonical import (
 from src.algotradeplan.plugins.data.contracts import DataRecord
 
 
+OHLCV_METADATA_INDEX = 6
+
+
 def _to_float(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
@@ -65,7 +68,7 @@ def normalize_ohlcv(source: str, symbol: str, rows: list[Any]) -> list[OHLCVReco
         if not isinstance(row, list) or len(row) < 5:
             continue
         timestamp_ms = _to_epoch_ms(row[0], _now_ms())
-        metadata = row[6] if len(row) > 6 and isinstance(row[6], dict) else {}
+        metadata = row[OHLCV_METADATA_INDEX] if len(row) > OHLCV_METADATA_INDEX and isinstance(row[OHLCV_METADATA_INDEX], dict) else {}
         normalized.append(
             OHLCVRecord(
                 symbol=symbol,

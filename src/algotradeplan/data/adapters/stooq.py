@@ -64,4 +64,4 @@ def _parse_stooq_timestamp(row: dict[str, Any]) -> int:
             return int(datetime.strptime(value, fmt).replace(tzinfo=UTC).timestamp() * 1000)
         except ValueError:
             continue
-    return 0
+    return int(datetime.now(UTC).timestamp() * 1000)

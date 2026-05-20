@@ -16,13 +16,21 @@ def _canonical_asset_class(asset_class: str) -> str:
     return asset_class.lower().strip()
 
 
+def _get_capability(capabilities: dict[str, SourceCapability], source: str) -> SourceCapability:
+    normalized = _canonical_source(source)
+    try:
+        return capabilities[normalized]
+    except KeyError as exc:
+        raise KeyError(f"Unknown source: {source}") from exc
+
+
 def dataset_status_for_source(capabilities: dict[str, SourceCapability], source: str, dataset: str) -> str:
-    capability = capabilities[_canonical_source(source)]
+    capability = _get_capability(capabilities, source)
     return dataset_status(capability, canonical_dataset_name(dataset))
 
 
 def asset_status_for_source(capabilities: dict[str, SourceCapability], source: str, asset_class: str) -> str:
-    capability = capabilities[_canonical_source(source)]
+    capability = _get_capability(capabilities, source)
     return asset_status(capability, _canonical_asset_class(asset_class))
 
 
@@ -59,7 +67,7 @@ def sources_for(
 
 
 def available_datasets(capabilities: dict[str, SourceCapability], source: str, *, implemented_only: bool = False) -> list[str]:
-    capability = capabilities[_canonical_source(source)]
+    capability = _get_capability(capabilities, source)
     datasets = capability.implemented_datasets if implemented_only else capability.datasets
     return sorted({canonical_dataset_name(item) for item in datasets})
 
@@ -77,7 +85,7 @@ def compare_sources(
         dataset_names = sorted(seen)
     rows: list[dict[str, str]] = []
     for source in sources:
-        capability = capabilities[_canonical_source(source)]
+        capability = _get_capability(capabilities, source)
         row = {
             "source": capability.source,
             "implementation_status": capability.implementation_status,
@@ -90,7 +98,7 @@ def compare_sources(
 
 
 def source_summary(capabilities: dict[str, SourceCapability], source: str) -> dict[str, Any]:
-    capability = capabilities[_canonical_source(source)]
+    capability = _get_capability(capabilities, source)
     dataset_statuses = {
         dataset: dataset_status(capability, dataset)
         for dataset in sorted({canonical_dataset_name(item) for item in capability.datasets})
