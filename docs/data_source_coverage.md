@@ -16,7 +16,7 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 
 | Source | Asset classes | Asset discovery | Ticker | OHLCV/Kline | Trades | Orderbook | Funding | Equity | ETF | Forex | Index | Futures | Options | Macro | News | Fundamentals | Corporate actions | Requires API key | Implementation status | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| alpha_vantage | equity, etf, forex | live | api_key | api_key | unsupported | unsupported | unsupported | api_key | api_key | api_key | unsupported | unsupported | unsupported | unsupported | unsupported | metadata_only | unsupported | yes | api_key | Framework fetches tick/kline via the market registry adapter; fundamentals remain capability metadata only and ingest reports api_key_required when the key is missing. |
+| alpha_vantage | equity, etf, forex | live | api_key | api_key | unsupported | unsupported | unsupported | api_key | api_key | api_key | unsupported | unsupported | unsupported | unsupported | unsupported | api_key | unsupported | yes | api_key | Framework fetches GLOBAL_QUOTE, intraday/daily kline, and Company Overview fundamentals when ALPHAVANTAGE_API_KEY is available; ingest reports api_key_required when the key is missing. |
 | binance_futures | crypto_perpetual | live | live | live | live | live | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | no | live | Public futures REST endpoints; respect exchange burst limits. |
 | bybit_linear | crypto_perpetual | live | live | live | live | live | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | no | live | Public linear market endpoints; funding available. |
 | coinbase_spot | crypto_spot | live | live | live | live | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | no | live | Public exchange endpoints; no funding feed. |
@@ -24,16 +24,16 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 | defillama | crypto_spot, macro | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | partial | metadata_only | partial | unsupported | no | partial | Protocol catalog is cached in-process to avoid repeated list fetches; macro tracks TVL time-series and fundamentals track protocol-level snapshot fields. |
 | ecb | macro, forex | live | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | live | unsupported | unsupported | unsupported | live | unsupported | unsupported | unsupported | no | live | FX fetches are parameterized by quote symbol such as USD, GBP, or JPY. |
 | financial_modeling_prep | equity, etf, options | live | api_key | api_key | unsupported | unsupported | unsupported | api_key | api_key | unsupported | unsupported | unsupported | api_key | unsupported | api_key | api_key | api_key | yes | api_key | Minimal adapter is available through the DataHub registry; endpoint scope still depends on API plan. |
-| finnhub | equity, etf, forex, crypto_spot | live | api_key | api_key | unsupported | unsupported | unsupported | api_key | api_key | api_key | unsupported | unsupported | unsupported | unsupported | metadata_only | metadata_only | unsupported | yes | api_key | Framework exposes market data fetches; fundamentals/news are capability metadata for future adapter expansion and ingest reports api_key_required when token is missing. |
+| finnhub | equity, etf, forex, crypto_spot | live | api_key | api_key | unsupported | unsupported | unsupported | api_key | api_key | api_key | unsupported | unsupported | unsupported | unsupported | api_key | api_key | unsupported | yes | api_key | Framework fetches quote/candles plus company-news and profile skeletons when FINNHUB_API_KEY is available; ingest reports api_key_required when token is missing. |
 | frankfurter_fx | forex, macro | live | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | live | unsupported | unsupported | unsupported | live | unsupported | unsupported | unsupported | no | live | Public FX reference rates. |
 | fred | macro | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | api_key | unsupported | unsupported | unsupported | yes | api_key | Provides macro series such as FEDFUNDS, CPIAUCSL, UNRATE, DGS10, and GDP. |
 | gdelt | news | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | live | unsupported | unsupported | no | live | News/event metadata feed. |
 | hacker_news | news | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | live | unsupported | unsupported | no | live | Public story search used as a smoke-news source. |
-| iex_cloud | equity, etf | live | api_key | api_key | api_key | unsupported | unsupported | api_key | api_key | unsupported | unsupported | unsupported | unsupported | unsupported | metadata_only | unsupported | metadata_only | yes | api_key | Market data is implemented through the registry adapter; richer datasets remain roadmap items and ingest reports api_key_required when token is missing. |
+| iex_cloud | equity, etf | live | api_key | api_key | api_key | unsupported | unsupported | api_key | api_key | unsupported | unsupported | unsupported | unsupported | unsupported | api_key | unsupported | api_key | yes | api_key | Framework fetches quote/chart plus news and dividend-style corporate action skeletons when IEX_CLOUD_API_KEY is available; ingest reports api_key_required when token is missing. |
 | kraken_spot | crypto_spot, forex | live | live | live | live | live | unsupported | unsupported | unsupported | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | no | live | Public spot endpoints; funding derived as unsupported. |
 | offline_fallback | crypto_perpetual | live | fallback | fallback | fallback | fallback | fallback | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | no | fallback | Deterministic fallback used only when live public sources are unreachable. |
-| polygon_io | equity, etf, options, forex, crypto_spot | live | api_key_or_plan | api_key_or_plan | api_key_or_plan | unsupported | unsupported | api_key_or_plan | api_key_or_plan | api_key_or_plan | unsupported | unsupported | api_key_or_plan | unsupported | metadata_only | unsupported | metadata_only | yes | api_key_or_plan | Core market datasets are fetchable; advanced datasets depend on plan coverage and remain metadata-only in the framework. |
-| quandl | futures, macro, equity | live | unsupported | api_key | unsupported | unsupported | unsupported | api_key | unsupported | unsupported | unsupported | api_key | unsupported | metadata_only | unsupported | metadata_only | unsupported | yes | api_key | Current registry adapter focuses on historical price series. |
+| polygon_io | equity, etf, options, forex, crypto_spot | live | api_key_or_plan | api_key_or_plan | api_key_or_plan | unsupported | unsupported | api_key_or_plan | api_key_or_plan | api_key_or_plan | unsupported | unsupported | api_key_or_plan | unsupported | api_key_or_plan | unsupported | api_key_or_plan | yes | api_key_or_plan | Aggregates/quotes are fetchable and news/splits skeleton fetches are available; options richness and some endpoints remain API-plan dependent. |
+| quandl | futures, macro, equity | live | unsupported | api_key | unsupported | unsupported | unsupported | api_key | unsupported | unsupported | unsupported | api_key | unsupported | api_key | unsupported | metadata_only | unsupported | yes | api_key | Current registry adapter focuses on historical futures/price series and exposes a macro-style skeleton for dataset snapshots. |
 | sec_edgar | equity | live | unsupported | unsupported | unsupported | unsupported | unsupported | partial | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | partial | partial | partial | no | partial | Uses public SEC ticker, submissions, and company facts endpoints for filing/news-style metadata. |
 | stooq | equity, etf, index, forex | live | unsupported | live | unsupported | unsupported | unsupported | live | live | live | live | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | no | live | Symbols/datasets are typically user-provided (e.g. aapl.us); timestamps are normalized from source dates to epoch-ms. |
 | twelve_data | equity, etf, forex, index, crypto_spot | live | api_key | api_key | unsupported | unsupported | unsupported | api_key | api_key | api_key | api_key | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | yes | api_key | API-keyed intraday time series provider. |
@@ -44,12 +44,12 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 
 | Dataset | live | partial | fallback | api_key/api_key_or_plan | metadata_only |
 |---|---|---|---|---|---|
-| corporate_actions | - | sec_edgar | - | financial_modeling_prep | iex_cloud, polygon_io |
-| fundamentals | - | defillama, sec_edgar | - | financial_modeling_prep | alpha_vantage, finnhub, quandl |
+| corporate_actions | - | sec_edgar | - | financial_modeling_prep, iex_cloud, polygon_io | - |
+| fundamentals | - | defillama, sec_edgar | - | alpha_vantage, financial_modeling_prep, finnhub | quandl |
 | funding | binance_futures, bybit_linear | - | offline_fallback | - | - |
 | kline | binance_futures, bybit_linear, coinbase_spot, kraken_spot, stooq | coingecko, yahoo_unofficial | offline_fallback | alpha_vantage, financial_modeling_prep, finnhub, iex_cloud, polygon_io, quandl, twelve_data | - |
-| macro | ecb, frankfurter_fx, world_bank | defillama | - | fred | quandl |
-| news | gdelt, hacker_news | sec_edgar | - | financial_modeling_prep | coingecko, defillama, finnhub, iex_cloud, polygon_io |
+| macro | ecb, frankfurter_fx, world_bank | defillama | - | fred, quandl | - |
+| news | gdelt, hacker_news | sec_edgar | - | financial_modeling_prep, finnhub, iex_cloud, polygon_io | coingecko, defillama |
 | orderbook | binance_futures, bybit_linear, coinbase_spot, kraken_spot | - | offline_fallback | - | - |
 | tick | binance_futures, bybit_linear, coinbase_spot, ecb, frankfurter_fx, kraken_spot | coingecko, yahoo_unofficial | offline_fallback | alpha_vantage, financial_modeling_prep, finnhub, iex_cloud, polygon_io, twelve_data | - |
 | trade | binance_futures, bybit_linear, coinbase_spot, kraken_spot | - | offline_fallback | iex_cloud, polygon_io | - |
@@ -69,36 +69,20 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 | news | gdelt (live), hacker_news (live) |
 | options | financial_modeling_prep (api_key), polygon_io (api_key_or_plan), yahoo_unofficial (partial) |
 
-## Best sources examples
+## Recommended Sources by Use Case
 
-### best crypto spot kline sources
-
-- `coinbase_spot` (dataset=live, asset=live, api_key=no)
-- `kraken_spot` (dataset=live, asset=live, api_key=no)
-- `coingecko` (dataset=partial, asset=partial, api_key=no)
-- `yahoo_unofficial` (dataset=partial, asset=partial, api_key=no)
-
-### best crypto perpetual funding sources
-
-- `binance_futures` (dataset=live, asset=live, api_key=no)
-- `bybit_linear` (dataset=live, asset=live, api_key=no)
-- `offline_fallback` (dataset=fallback, asset=fallback, api_key=no)
-
-### best macro sources
-
-- `ecb` (dataset=live, asset=live, api_key=no)
-- `frankfurter_fx` (dataset=live, asset=live, api_key=no)
-- `world_bank` (dataset=live, asset=live, api_key=no)
-- `defillama` (dataset=partial, asset=partial, api_key=no)
-- `fred` (dataset=api_key, asset=api_key, api_key=yes)
-
-### best news sources
-
-- `gdelt` (dataset=live, asset=n/a, api_key=no)
-- `hacker_news` (dataset=live, asset=n/a, api_key=no)
-- `sec_edgar` (dataset=partial, asset=n/a, api_key=no)
-- `financial_modeling_prep` (dataset=api_key, asset=n/a, api_key=yes)
-- `coingecko` (dataset=metadata_only, asset=n/a, api_key=no)
+| Use case | Best sources | Alternatives | API key needed | Notes |
+|---|---|---|---|---|
+| crypto_spot_kline | coinbase_spot, kraken_spot | coingecko, yahoo_unofficial | No | live kline support for crypto_spot without API key |
+| crypto_perp_funding | binance_futures, bybit_linear | offline_fallback | No | live funding support for crypto_perpetual without API key |
+| equity_daily_ohlcv | stooq, yahoo_unofficial | alpha_vantage, financial_modeling_prep | No | live kline support for equity without API key; EOD/public-first sources are preferred when available. |
+| equity_intraday_ohlcv | stooq, yahoo_unofficial | alpha_vantage, financial_modeling_prep | No | live kline support for equity without API key |
+| macro_rates | ecb, frankfurter_fx | kraken_spot, world_bank | No | live tick support for forex, macro without API key; Public FX/reference-rate feeds are preferred. |
+| macro_indicators | ecb, frankfurter_fx | world_bank, defillama | No | live macro support for macro, forex without API key |
+| public_news | gdelt, hacker_news | sec_edgar, financial_modeling_prep | No | live news support without API key; No-key news/event feeds are preferred for this use case. |
+| fundamentals | defillama, sec_edgar | alpha_vantage, financial_modeling_prep | No | partial fundamentals support without API key |
+| options | yahoo_unofficial | financial_modeling_prep, polygon_io | No | partial kline support for options without API key; Coverage is often plan-dependent for richer options endpoints. |
+| offline_demo | offline_fallback, binance_futures | bybit_linear | No | fallback kline support for crypto_perpetual without API key; offline_fallback should only be used for tutorial/smoke/demo flows. |
 
 ## Live fetch sources
 
@@ -113,7 +97,25 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 - `stooq`
 - `world_bank`
 
-## API-key required sources
+## Public / no-key providers
+
+- `binance_futures`
+- `bybit_linear`
+- `coinbase_spot`
+- `coingecko`
+- `defillama`
+- `ecb`
+- `frankfurter_fx`
+- `gdelt`
+- `hacker_news`
+- `kraken_spot`
+- `offline_fallback`
+- `sec_edgar`
+- `stooq`
+- `world_bank`
+- `yahoo_unofficial`
+
+## API-key providers
 
 - `alpha_vantage`
 - `financial_modeling_prep`
@@ -126,15 +128,11 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 
 ## Metadata-only sources
 
-- `alpha_vantage`
 - `coingecko`
 - `defillama`
-- `finnhub`
-- `iex_cloud`
-- `polygon_io`
 - `quandl`
 
-## Fallback sources
+## Fallback / offline providers
 
 - `offline_fallback`
 
@@ -142,16 +140,16 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 
 - CoinGecko OHLCV çıktısı synthetic_ohlcv metadata ile close-based market_chart bucket üzerinden üretilir.
 - API-key / paid-plan kaynaklarda gerçek kapsam plan seviyesine göre değişebilir.
-- offline_fallback kaynağı deterministic smoke/backtest fallback amaçlıdır.
+- offline_fallback kaynağı deterministic smoke/backtest/demo amaçlıdır.
 - API-keyed intraday time series provider.
-- Core market datasets are fetchable; advanced datasets depend on plan coverage and remain metadata-only in the framework.
-- Current registry adapter focuses on historical price series.
+- Aggregates/quotes are fetchable and news/splits skeleton fetches are available; options richness and some endpoints remain API-plan dependent.
+- Current registry adapter focuses on historical futures/price series and exposes a macro-style skeleton for dataset snapshots.
 - Deterministic fallback used only when live public sources are unreachable.
 - Discovery + tick/kline available via unofficial chart/search responses; options coverage remains example-level metadata.
 - FX fetches are parameterized by quote symbol such as USD, GBP, or JPY.
-- Framework exposes market data fetches; fundamentals/news are capability metadata for future adapter expansion and ingest reports api_key_required when token is missing.
-- Framework fetches tick/kline via the market registry adapter; fundamentals remain capability metadata only and ingest reports api_key_required when the key is missing.
-- Market data is implemented through the registry adapter; richer datasets remain roadmap items and ingest reports api_key_required when token is missing.
+- Framework fetches GLOBAL_QUOTE, intraday/daily kline, and Company Overview fundamentals when ALPHAVANTAGE_API_KEY is available; ingest reports api_key_required when the key is missing.
+- Framework fetches quote/candles plus company-news and profile skeletons when FINNHUB_API_KEY is available; ingest reports api_key_required when token is missing.
+- Framework fetches quote/chart plus news and dividend-style corporate action skeletons when IEX_CLOUD_API_KEY is available; ingest reports api_key_required when token is missing.
 - Minimal adapter is available through the DataHub registry; endpoint scope still depends on API plan.
 - News/event metadata feed.
 - OHLCV is synthesized from market_chart close/volume buckets; pro tiers can widen endpoint coverage.

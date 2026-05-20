@@ -26,6 +26,7 @@ ARTIFACT_PATHS = {
     "framework_status_doc": DOC_PATH,
     "next_actions_doc": PLAN_PATH,
     "coverage_doc": REPO_ROOT / "docs" / "data_source_coverage.md",
+    "source_recommendations_doc": REPO_ROOT / "docs" / "source_recommendations.md",
     "tutorial_walkthrough": REPO_ROOT / "artifacts" / "tutorial" / "tutorial_walkthrough.md",
     "real_data_smoke_report": REPO_ROOT / "artifacts" / "real_data_smoke_report.json",
 }
@@ -80,6 +81,7 @@ def _artifact_state(path: Path, *, stale_after_days: int = 7) -> dict[str, Any]:
 
 def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
     metadata_candidates = [item["source"] for item in report["top_metadata_only_adapter_candidates"][:5]]
+    use_case_gaps = report["use_case_coverage_gaps"]
     p0 = [
         "Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).",
         "Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).",
@@ -89,15 +91,20 @@ def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
         p0.append("Refresh stale or missing artifacts listed in the artifact state section.")
     p0.append("Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).")
     p1 = [
-        "Add and document best_sources_for query recipes in tutorial and quickstart docs.",
+        "Add and document recommend_sources / best_sources_for query recipes in tutorial and quickstart docs.",
         "Expose source and dataset explanation snippets in user-facing docs/notebooks.",
-        "Keep capability and coverage indices synchronized with generated docs.",
+        "Keep capability, recommendation, and coverage indices synchronized with generated docs.",
     ]
+    p1.extend(
+        f"Use-case gap: {item}"
+        for item in use_case_gaps[:5]
+    )
     p2 = [
         "Improve CoinGecko synthetic OHLCV transparency and dataset notes.",
         "Improve DefiLlama TVL/protocol metadata clarity for macro/fundamentals.",
         f"Reduce metadata-only adapters in priority order: {', '.join(metadata_candidates) if metadata_candidates else 'none'}.",
     ]
+    p2.extend(report["recommended_next_adapter_work"][:5])
     p3 = [
         "Expand data-quality checks and monitor quality issues over time.",
         "Harden backtest/risk/portfolio integration scenarios.",
@@ -123,10 +130,44 @@ def _compute_score(report: dict[str, Any]) -> int:
     return max(0, min(SCORE_MAX, score))
 
 
+def _build_use_case_report(hub: DataHub) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    coverage_rows: list[dict[str, Any]] = []
+    gaps: list[str] = []
+    adapter_work: list[str] = []
+    for use_case in hub.supported_use_cases():
+        public_recommendations = hub.recommend_sources(use_case, allow_api_key=False, limit=3)
+        all_recommendations = hub.recommend_sources(use_case, allow_api_key=True, limit=3)
+        if public_recommendations:
+            status = "public_or_fallback"
+        elif all_recommendations:
+            status = "api_key_only"
+            gaps.append(
+                f"{use_case}: only API-key / plan-scoped recommendations available ({', '.join(item['source'] for item in all_recommendations[:2])})"
+            )
+        else:
+            status = "uncovered"
+            gaps.append(f"{use_case}: no current recommendation available")
+        if status in {"api_key_only", "uncovered"} and all_recommendations:
+            top = all_recommendations[0]
+            adapter_work.append(
+                f"Improve {top['source']} for {use_case} ({top['dataset']} -> {top['dataset_status']})"
+            )
+        coverage_rows.append(
+            {
+                "use_case": use_case,
+                "status": status,
+                "public_sources": [item["source"] for item in public_recommendations],
+                "all_sources": [item["source"] for item in all_recommendations],
+            }
+        )
+    return coverage_rows, gaps, adapter_work
+
+
 def build_status_report() -> dict[str, Any]:
     hub = DataHub()
     coverage_rows = hub.coverage_table()
     summaries = [hub.source_summary(source) for source in hub.sources()]
+    use_case_rows, use_case_gaps, recommended_adapter_work = _build_use_case_report(hub)
     status_counter = Counter(str(summary["implementation_status"]) for summary in summaries)
     missing_notebooks = [name for name in REQUIRED_NOTEBOOKS if not (REPO_ROOT / "notebooks" / name).exists()]
     unsupported_probe = hub.ingest(
@@ -162,6 +203,7 @@ def build_status_report() -> dict[str, Any]:
                     "compare_sources",
                     "source_summary",
                     "best_sources_for",
+                    "recommend_sources",
                     "explain_source",
                     "explain_dataset",
                 )
@@ -225,9 +267,13 @@ def build_status_report() -> dict[str, Any]:
             "api_key_sources_count": status_counter.get("api_key", 0) + status_counter.get("api_key_or_plan", 0),
             "metadata_only_sources_count": len(metadata_candidates),
             "fallback_sources_count": status_counter.get("fallback", 0),
+            "use_case_public_coverage_count": len([row for row in use_case_rows if row["status"] == "public_or_fallback"]),
             "unsupported_dataset_requests_behavior": unsupported_probe.source_issues,
         },
         "top_metadata_only_adapter_candidates": metadata_candidates[:10],
+        "use_case_coverage": use_case_rows,
+        "use_case_coverage_gaps": use_case_gaps,
+        "recommended_next_adapter_work": recommended_adapter_work,
         "artifact_state": artifact_state,
         "missing_expected_tests": missing_tests,
         "validation_commands": [
@@ -260,6 +306,8 @@ def render_next_actions_markdown(report: dict[str, Any]) -> str:
         + "\n".join(f"- {item}" for item in priorities["P2"])
         + "\n\n## P3 - Production hardening\n"
         + "\n".join(f"- {item}" for item in priorities["P3"])
+        + "\n\n## P1 - Use-case coverage gaps\n"
+        + ("\n".join(f"- {item}" for item in report["use_case_coverage_gaps"]) or "\n- _none_")
         + "\n"
     )
 
@@ -297,14 +345,20 @@ def render_markdown(report: dict[str, Any]) -> str:
             "### P3",
             *[f"- {item}" for item in sanitized["priority_actions"]["P3"]],
             "",
-            "## Top Metadata-only Adapter Candidates",
-            *[
-                f"- {item['source']} (metadata_only_datasets={item['metadata_only_dataset_count']}, status={item['implementation_status']})"
-                for item in sanitized["top_metadata_only_adapter_candidates"]
-            ],
-            "",
-            "## Artifact State",
-            *[
+             "## Top Metadata-only Adapter Candidates",
+             *[
+                 f"- {item['source']} (metadata_only_datasets={item['metadata_only_dataset_count']}, status={item['implementation_status']})"
+                 for item in sanitized["top_metadata_only_adapter_candidates"]
+             ],
+             "",
+             "## Recommended next adapter work",
+             *([f"- {item}" for item in sanitized["recommended_next_adapter_work"]] or ["- _none_"]),
+             "",
+             "## Use-case coverage gaps",
+             *([f"- {item}" for item in sanitized["use_case_coverage_gaps"]] or ["- _none_"]),
+             "",
+             "## Artifact State",
+             *[
                 f"- {item['path']}: {item['status']}"
                 + (f" ({item['age_days']}d old)" if "age_days" in item else "")
                 for item in sanitized["artifact_state"]
@@ -320,12 +374,13 @@ def render_markdown(report: dict[str, Any]) -> str:
             "## Coverage Summary",
             f"- source count: {sanitized['coverage_summary']['source_count']}",
             f"- live sources count: {sanitized['coverage_summary']['live_sources_count']}",
-            f"- api_key sources count: {sanitized['coverage_summary']['api_key_sources_count']}",
-            f"- metadata_only sources count: {sanitized['coverage_summary']['metadata_only_sources_count']}",
-            f"- fallback sources count: {sanitized['coverage_summary']['fallback_sources_count']}",
-            f"- unsupported dataset requests behavior: {json.dumps(sanitized['coverage_summary']['unsupported_dataset_requests_behavior'])}",
-            "",
-            "## Validation Commands",
+             f"- api_key sources count: {sanitized['coverage_summary']['api_key_sources_count']}",
+             f"- metadata_only sources count: {sanitized['coverage_summary']['metadata_only_sources_count']}",
+             f"- fallback sources count: {sanitized['coverage_summary']['fallback_sources_count']}",
+             f"- public/fallback use-case coverage count: {sanitized['coverage_summary']['use_case_public_coverage_count']}",
+             f"- unsupported dataset requests behavior: {json.dumps(sanitized['coverage_summary']['unsupported_dataset_requests_behavior'])}",
+             "",
+             "## Validation Commands",
             *[f"- `{item}`" for item in sanitized["validation_commands"]],
         ]
     )

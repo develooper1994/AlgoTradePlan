@@ -60,7 +60,10 @@ hub.sources()
 hub.coverage_table()
 hub.dataset_status("coingecko", "kline")
 hub.sources_for(dataset="news")
+hub.recommend_sources("crypto_spot_kline", allow_api_key=False)
+hub.recommend_sources("macro_indicators", allow_api_key=False)
 hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False)
+hub.best_sources_for(dataset="kline", asset_class="equity", allow_api_key=False)
 hub.explain_source("coingecko")
 hub.explain_dataset("funding")
 hub.dataset_sources_matrix(["kline", "news", "macro", "fundamentals"])
@@ -154,6 +157,13 @@ Coverage snapshot:
 - `docs/framework_status.md` — generated framework status / next actions
 - `docs/next_actions.md` — generated priority plan from framework status
 - `docs/data_source_coverage.md` — source/dataset implementation coverage matrix
+- `docs/source_recommendations.md` — generated use-case based source recommendation index
 - `docs/extending.md` — adding new plugins
 - `docs/usage_with_notebooks.md` — notebook workflow guide
 - `docs/runbooks/` — operational runbooks
+
+Artifact refresh:
+
+```bash
+python scripts/refresh_framework_artifacts.py --skip-live
+```

@@ -20,9 +20,9 @@ def main() -> None:
     args = parser.parse_args()
 
     steps: list[tuple[str, list[str], bool]] = [
-        ("framework_status", [sys.executable, "scripts/framework_status.py", "--write-doc", "--write-plan"], True),
-        ("coverage_doc", [sys.executable, "scripts/generate_data_coverage_doc.py"], True),
+        ("coverage_and_recommendations_doc", [sys.executable, "scripts/generate_data_coverage_doc.py"], True),
         ("tutorial_walkthrough", [sys.executable, "scripts/tutorial_mode.py", "--all", "--offline", "--write-doc"], True),
+        ("framework_status", [sys.executable, "scripts/framework_status.py", "--write-doc", "--write-plan"], True),
     ]
     if not args.skip_live:
         steps.append(

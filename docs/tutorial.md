@@ -26,7 +26,7 @@ python scripts/tutorial_mode.py --all --offline --write-doc
 
 Adımlar:
 1. DataHub oluştur, kaynakları listele.
-2. Coverage / capability query API kullan.
+2. Coverage / capability / recommendation query API kullan.
 3. Asset discovery yap.
 4. Veri ingest et.
 5. Normalize, quality ve provenance incele.
@@ -47,6 +47,8 @@ hub.sources()
 hub.dataset_status("coingecko", "kline")
 hub.sources_for(dataset="news")
 hub.compare_sources(["binance_futures", "coingecko", "stooq", "world_bank"])
+hub.recommend_sources("crypto_spot_kline", allow_api_key=False)
+hub.recommend_sources("macro_indicators", allow_api_key=False)
 
 etl = ETL(hub)
 frame = etl.load_market_data(source="offline_fallback", symbol="BTCUSDT", dataset="kline", limit=50)
@@ -59,6 +61,11 @@ hub.available_datasets("binance_futures", implemented_only=True)
 hub.asset_status("world_bank", "macro")
 hub.supports("binance_futures", "funding", require_live=True)
 hub.source_summary("coingecko")
+hub.recommend_sources("crypto_spot_kline", allow_api_key=False)
+hub.recommend_sources("crypto_perp_funding", allow_api_key=False)
+hub.recommend_sources("macro_indicators", allow_api_key=False)
+hub.recommend_sources("public_news", allow_api_key=False)
+hub.best_sources_for(dataset="kline", asset_class="equity", allow_api_key=False)
 hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False)
 hub.explain_source("coingecko")
 hub.explain_dataset("funding")
@@ -71,6 +78,7 @@ CLI output modes:
 - `--pretty`: human-friendly terminal walkthrough.
 - `--markdown`: markdown walkthrough on stdout.
 - `--write-doc`: generate `artifacts/tutorial/tutorial_walkthrough.md`.
+- Step 2 now includes **Source recommendation examples** for no-key/public-first workflows.
 
 ## ETL → Strategy/Backtest → Risk/Execution/Portfolio
 
