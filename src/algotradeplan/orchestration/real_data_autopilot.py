@@ -22,8 +22,6 @@ from src.algotradeplan.plugins.connectors.simulated_fill_connector import (
 from src.algotradeplan.plugins.data.market import (
     CcxtDependencyError,
     CcxtMarketDataAgent,
-    build_market_source_registry,
-    collect_market_source_data,
 )
 from src.algotradeplan.plugins.risk.engine import RiskEngine
 from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import (
@@ -159,95 +157,67 @@ def _require_dataset_coverage(source: str, datasets: dict[str, Any], allow_parti
 
 def _collect_market_sources(
     *,
+    hub: DataHub,
     max_symbols_per_source: int,
     allow_partial: bool,
-    json_getter: JsonGetter | None,
+    json_getter: JsonGetter | None,  # noqa: ARG002
     market_agent: CcxtMarketDataAgent | None,
 ) -> tuple[list[SourceCoverage], dict[str, dict[str, Any]], list[dict[str, str]]]:
     source_coverages: list[SourceCoverage] = []
     datasets_by_source: dict[str, dict[str, Any]] = {}
     source_issues: list[dict[str, str]] = []
-
-    if json_getter:
+    for source_name in ("binance_futures", "bybit_linear", "kraken_spot", "coinbase_spot", "yahoo_unofficial"):
+        capability = hub.capability(source_name)
+        requested_datasets = [item for item in ("tick", "kline", "trade", "orderbook", "funding") if item in capability.datasets]
         try:
-            results, issues = collect_market_source_data(
-                get_json=json_getter,
-                max_symbols=max_symbols_per_source,
-                allow_partial=allow_partial,
+            symbols = hub.discover_assets(source_name, limit=max_symbols_per_source)
+            if not symbols:
+                raise RealDataSmokeError(f"{source_name} discovery returned no symbols")
+            selected_asset = _select_preferred_asset(symbols)
+            ingest_result = hub.ingest(
+                source=source_name,
+                symbol=selected_asset,
+                datasets=requested_datasets,
+                allow_partial=True,
+                store=False,
             )
-        except Exception as exc:
-            raise RealDataSmokeError(str(exc)) from exc
-
-        for issue in issues:
-            source_issues.append({"source": issue.source, "reason": issue.reason})
-
-        for item in results:
-            sizes = _require_dataset_coverage(item.source, item.datasets, allow_partial)
+            source_issues.extend(ingest_result.source_issues)
+            datasets = {item: ingest_result.normalized.get(item, []) for item in requested_datasets}
+            sizes = _require_dataset_coverage(source_name, datasets, allow_partial)
             source_coverages.append(
                 SourceCoverage(
-                    source=item.source,
-                    asset_count=item.asset_count,
-                    selected_asset=item.selected_asset,
+                    source=source_name,
+                    asset_count=len(symbols),
+                    selected_asset=selected_asset,
                     datasets=sizes,
                 )
             )
-            datasets_by_source[item.source] = item.datasets
+            datasets_by_source[source_name] = datasets
+        except Exception as exc:
+            source_issues.append({"source": source_name, "reason": str(exc)})
+            if allow_partial:
+                continue
+            raise RealDataSmokeError(str(exc)) from exc
 
-        if not source_coverages:
-            raise RealDataSmokeError("no market source coverage available")
-        return source_coverages, datasets_by_source, source_issues
-
-    agent = market_agent or CcxtMarketDataAgent()
-    ccxt_sources = (
-        ("binanceusdm", "binance_futures"),
-        ("bybit", "bybit_linear"),
-        ("kraken", "kraken_spot"),
-        ("coinbase", "coinbase_spot"),
-    )
-    try:
-        for exchange_id, source_name in ccxt_sources:
-            try:
-                symbols = agent.discover_assets(exchange_id, max_symbols_per_source)
-                if not symbols:
-                    raise RealDataSmokeError(f"{exchange_id} discovery returned no symbols")
+    if market_agent and not source_coverages:
+        try:
+            agent = market_agent if market_agent is not None else CcxtMarketDataAgent()
+            symbols = agent.discover_assets("binanceusdm", max_symbols_per_source)
+            if symbols:
                 selected_asset = _select_preferred_asset(symbols)
-                datasets = agent.fetch_exchange_datasets(exchange_id, selected_asset)
-                if source_name in {"kraken_spot", "coinbase_spot"} and not datasets.get("funding"):
-                    datasets = dict(datasets)
-                    datasets["funding"] = [{"symbol": selected_asset, "rate": 0.0, "derived": True}]
-                sizes = _require_dataset_coverage(source_name, datasets, allow_partial)
+                datasets = agent.fetch_exchange_datasets("binanceusdm", selected_asset)
+                sizes = _require_dataset_coverage("binance_futures", datasets, allow_partial)
                 source_coverages.append(
                     SourceCoverage(
-                        source=source_name,
+                        source="binance_futures",
                         asset_count=len(symbols),
                         selected_asset=selected_asset,
                         datasets=sizes,
                     )
                 )
-                datasets_by_source[source_name] = datasets
-            except Exception as exc:
-                source_issues.append({"source": source_name, "reason": str(exc)})
-                if allow_partial:
-                    continue
-                raise RealDataSmokeError(str(exc)) from exc
-    except CcxtDependencyError:
-        results, issues = collect_market_source_data(
-            get_json=_default_json_getter,
-            max_symbols=max_symbols_per_source,
-            allow_partial=allow_partial,
-        )
-        source_issues.extend({"source": issue.source, "reason": issue.reason} for issue in issues)
-        for item in results:
-            sizes = _require_dataset_coverage(item.source, item.datasets, allow_partial)
-            source_coverages.append(
-                SourceCoverage(
-                    source=item.source,
-                    asset_count=item.asset_count,
-                    selected_asset=item.selected_asset,
-                    datasets=sizes,
-                )
-            )
-            datasets_by_source[item.source] = item.datasets
+                datasets_by_source["binance_futures"] = datasets
+        except CcxtDependencyError:
+            source_issues.append({"source": "ccxt", "reason": "ccxt_unavailable"})
     if not source_coverages and allow_partial:
         offline_symbol = "BTCUSDT"
         offline_klines = [
@@ -295,6 +265,7 @@ def run_real_data_autopilot(
     hub = DataHub(json_getter=get_json, artifact_root=report_path.parent / "datahub")
 
     source_coverages, datasets_by_source, source_issues = _collect_market_sources(
+        hub=hub,
         max_symbols_per_source=max_symbols_per_source,
         allow_partial=allow_partial,
         json_getter=json_getter,

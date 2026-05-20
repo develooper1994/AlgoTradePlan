@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import ssl
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from src.algotradeplan.data.adapters import build_default_adapter_registry
 from src.algotradeplan.data.capabilities import SourceCapability, canonical_dataset_name, capability_map
 from src.algotradeplan.data.coverage import build_coverage_table
 from src.algotradeplan.data.normalize import normalize_dataset, to_data_records
@@ -18,7 +19,6 @@ from src.algotradeplan.data.provenance import ManifestProvenanceTracker
 from src.algotradeplan.data.quality import CanonicalDataQualityPlugin
 from src.algotradeplan.data.storage import InMemoryStorage, LocalArtifactStorage
 from src.algotradeplan.plugins.data.contracts import DataRequest, DataRecord, ProvenanceRecord, QualityReport, StorageReceipt
-from src.algotradeplan.plugins.data.market import build_market_source_registry
 
 JsonGetter = Callable[[str, dict[str, Any]], Any]
 _ALLOWED_API_PREFIXES = (
@@ -35,6 +35,12 @@ _ALLOWED_API_PREFIXES = (
     "https://cloud.iexapis.com/",
     "https://api.frankfurter.dev/",
     "https://hn.algolia.com/",
+    "https://api.coingecko.com/",
+    "https://stooq.com/",
+    "https://api.gdeltproject.org/",
+    "https://api.worldbank.org/",
+    "https://data-api.ecb.europa.eu/",
+    "https://api.llama.fi/",
 )
 
 
@@ -81,7 +87,7 @@ class DataHub:
         self._storage = storage or LocalArtifactStorage(storage_root / "records")
         self._provenance = provenance or ManifestProvenanceTracker(storage_root / "manifests")
         self._capabilities = capability_map()
-        self._market_registry = {adapter.source: adapter for adapter in build_market_source_registry()}
+        self._adapter_registry = build_default_adapter_registry(self._json_getter)
 
     def sources(self) -> list[str]:
         return sorted(self._capabilities)
@@ -97,30 +103,10 @@ class DataHub:
         capability = self._capabilities[source]
         if not capability.supports_discovery:
             return []
-        if source in self._market_registry:
-            symbols = self._market_registry[source].discover_assets(self._json_getter, max(1, limit))
-        elif source == "frankfurter_fx":
-            payload = self._json_getter("https://api.frankfurter.dev/v1/currencies", {})
-            symbols = sorted(str(item) for item in payload.keys())
-        elif source == "hacker_news":
-            payload = self._json_getter("https://hn.algolia.com/api/v1/search", {"query": "bitcoin", "tags": "story"})
-            symbols = []
-            for row in payload.get("hits", []):
-                title = str(row.get("title") or "").lower()
-                if "bitcoin" in title:
-                    symbols.append("BITCOIN")
-                if "ethereum" in title:
-                    symbols.append("ETHEREUM")
-            symbols = sorted(set(symbols or ["BITCOIN"]))
-        elif source == "offline_fallback":
-            symbols = ["BTCUSDT"]
-        else:
+        try:
+            symbols = self._adapter_registry.discover_assets(source, max(1, limit), **filters)
+        except KeyError:
             return []
-
-        quotes = {item.upper() for item in filters.get("quote", [])}
-        if quotes:
-            filtered = [symbol for symbol in symbols if any(symbol.upper().endswith(quote) for quote in quotes)]
-            symbols = filtered or symbols
         return symbols[:limit]
 
     def ingest(
@@ -136,7 +122,7 @@ class DataHub:
     ) -> IngestResult:
         capability = self._capabilities[source]
         requested = [canonical_dataset_name(dataset) for dataset in datasets]
-        raw_datasets = self._fetch_raw(source=source, symbol=symbol)
+        raw_datasets = self._fetch_raw(source=source, symbol=symbol, datasets=requested, timeframe=timeframe, limit=limit)
         normalized: dict[str, list[dict[str, Any]]] = {}
         records: list[DataRecord] = []
         issues: list[dict[str, str]] = []
@@ -156,7 +142,7 @@ class DataHub:
             if isinstance(raw_payload, list):
                 raw_payload = raw_payload[:limit] if dataset != "kline" else raw_payload[-limit:]
             items = normalize_dataset(dataset, source, symbol, raw_payload)
-            normalized[dataset] = [asdict(item) for item in items]
+            normalized[dataset] = [asdict(item) if is_dataclass(item) else dict(item) for item in items]
             dataset_coverage[dataset] = len(items)
             records.extend(to_data_records(dataset, source, asset_type, items))
 
@@ -220,33 +206,25 @@ class DataHub:
             store=False,
         ).to_feature_frame(dataset=canonical_dataset_name(dataset))
 
-    def _fetch_raw(self, *, source: str, symbol: str) -> dict[str, Any]:
-        if source in self._market_registry:
-            return self._market_registry[source].fetch_datasets(self._json_getter, symbol)
-        if source == "frankfurter_fx":
-            return {
-                "macro": self._json_getter("https://api.frankfurter.dev/v1/latest", {"base": symbol}),
-                "tick": [{"symbol": symbol, "price": 1.0}],
-            }
-        if source == "hacker_news":
-            return {
-                "news": self._json_getter(
-                    "https://hn.algolia.com/api/v1/search",
-                    {"query": symbol.lower(), "tags": "story", "hitsPerPage": 20},
-                ).get("hits", [])
-            }
-        if source == "offline_fallback":
-            return {
-                "tick": [{"symbol": symbol, "price": "123.45"}],
-                "kline": [
-                    [1_700_000_000_000 + (index * 60_000), "100", "101", "99", str(100 + index * 0.2), "10"]
-                    for index in range(120)
-                ],
-                "trade": [{"id": 1, "price": "123.45", "qty": "0.25", "time": 1_700_000_000_001}],
-                "orderbook": [{"bids": [["123.40", "1"]], "asks": [["123.50", "1"]]}],
-                "funding": [{"fundingRate": "0.0001", "fundingTime": 1_700_000_000_002, "derived": True}],
-            }
-        return {}
+    def _fetch_raw(
+        self,
+        *,
+        source: str,
+        symbol: str,
+        datasets: list[str],
+        timeframe: str = "1m",
+        limit: int = 500,
+    ) -> dict[str, Any]:
+        try:
+            return self._adapter_registry.fetch_raw(
+                source=source,
+                symbol=symbol,
+                datasets=datasets,
+                timeframe=timeframe,
+                limit=limit,
+            )
+        except KeyError:
+            return {}
 
 
 def _default_json_getter(url: str, params: dict[str, Any]) -> Any:

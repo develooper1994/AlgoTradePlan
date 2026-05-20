@@ -4,6 +4,11 @@
 - support multi-lake, multi-source, multi-asset growth without rewriting ingestion contracts
 - normalize market, news, and macro records behind shared schemas and join-key conventions
 - make quality, revisioning, provenance, replay, and audit mandatory in the ingestion path
+- source/dataset kapsamını `data_source_coverage.md` tablosunda koddan üretilen şekilde açık tut
+
+## Source Coverage Matrix
+- Canlı/metadata ayrımı için: `docs/data_source_coverage.md`
+- Yeniden üretmek için: `python scripts/generate_data_coverage_doc.py`
 
 ## Lake Layout
 | Layer | Purpose | Example Contents |

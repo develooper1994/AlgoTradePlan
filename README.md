@@ -49,6 +49,7 @@ hub = DataHub()
 hub.sources()
 hub.coverage_table()
 hub.discover_assets(source="binance_futures", limit=10)
+hub.ingest(source="coingecko", symbol="bitcoin", datasets=["tick", "kline"], allow_partial=True)
 
 etl = ETL()
 df = etl.load_market_data(
@@ -112,6 +113,11 @@ jupyter lab
 - `notebooks/02_strategy_backtest_portfolio.ipynb`
 - `notebooks/03_multi_source_asset_coverage.ipynb`
 
+Notebook amaçları:
+- `01_real_data_smoke`: coverage tablosu + çoklu source ingest smoke
+- `02_strategy_backtest_portfolio`: ETL + strategy/risk/execution/portfolio zinciri
+- `03_multi_source_asset_coverage`: implementation status, API-key filtreleme, unsupported dataset davranışı
+
 Coverage snapshot:
 
 | Source | Asset discovery | Kline/OHLCV | Trades | Orderbook | Funding | Equity | ETF | Forex | Options | Macro | News | Requires API key | API key env |
@@ -125,6 +131,7 @@ Coverage snapshot:
 - `ONBOARDING.md` / `docs/onboarding_10min.md` — 10-min onboarding
 - `docs/ARCHITECTURE.md` — component diagram and design decisions
 - `docs/quickstart.md` — step-by-step usage
+- `docs/data_source_coverage.md` — source/dataset implementation coverage matrix
 - `docs/extending.md` — adding new plugins
 - `docs/usage_with_notebooks.md` — notebook workflow guide
 - `docs/runbooks/` — operational runbooks
