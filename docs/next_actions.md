@@ -4,6 +4,7 @@
 - Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).
 - Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).
 - Run offline tutorial walkthrough (`python scripts/tutorial_mode.py --all --offline --write-doc`).
+- Refresh stale or missing artifacts listed in the artifact state section.
 - Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).
 
 ## P1 - Capability UX
