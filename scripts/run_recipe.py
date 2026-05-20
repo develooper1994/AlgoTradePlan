@@ -5,6 +5,7 @@ import ast
 import json
 import os
 import pathlib
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,39 @@ from src.algotradeplan.research import (
 from scripts.run_experiment import _run_strategy_flow
 
 
+def _split_list_items(text: str) -> list[str]:
+    items: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    in_single = False
+    in_double = False
+    for char in text:
+        if char == "'" and not in_double:
+            in_single = not in_single
+            buf.append(char)
+            continue
+        if char == '"' and not in_single:
+            in_double = not in_double
+            buf.append(char)
+            continue
+        if not in_single and not in_double:
+            if char in "[{(":
+                depth += 1
+            elif char in "]})":
+                depth = max(0, depth - 1)
+            elif char == "," and depth == 0:
+                item = "".join(buf).strip()
+                if item:
+                    items.append(item)
+                buf = []
+                continue
+        buf.append(char)
+    item = "".join(buf).strip()
+    if item:
+        items.append(item)
+    return items
+
+
 def _parse_value(value: str) -> Any:
     text = value.strip()
     if not text:
@@ -38,17 +72,13 @@ def _parse_value(value: str) -> Any:
             inner = text[1:-1].strip()
             if not inner:
                 return []
-            return [_parse_value(item.strip()) for item in inner.split(",")]
+            return [_parse_value(item) for item in _split_list_items(inner)]
     if text.startswith("{") and text.endswith("}"):
         return ast.literal_eval(text)
-    numeric_candidate = text.replace(".", "", 1).replace("-", "", 1)
-    try:
-        if numeric_candidate.isdigit() and "." in text:
-            return float(text)
-        if numeric_candidate.isdigit():
-            return int(text)
-    except ValueError:
-        pass
+    if re.fullmatch(r"-?\d+", text):
+        return int(text)
+    if re.fullmatch(r"-?\d+\.\d+", text):
+        return float(text)
     return text.strip('"').strip("'")
 
 
