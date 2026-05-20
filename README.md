@@ -1,146 +1,109 @@
 # AlgoTradePlan
 
-Production-grade, plugin-based algorithmic trading framework.
+Production-grade, plugin-based algorithmic trading research framework.
 
-## Architecture
-
-```
-src/algotradeplan/
-├── core/           # canonical schemas, intent model, contracts, types, clock
-├── portfolio/      # PortfolioManager, PositionBook, TradeLedger  ← production module
-├── plugins/
-│   ├── data/       # market/news/macro sources, ingestion pipeline, quality, provenance
-│   ├── risk/       # RiskEngine (structured decisions), NotionalGuardRiskPlugin
-│   ├── strategies/ # EmaCrossAtrStop, parameter optimization
-│   ├── indicators/ # EMA, ATR, Bollinger rolling-window engine
-│   ├── connectors/ # SimulatedFillExecutionConnector
-│   └── registry    # dynamic plugin loader
-├── backtest/       # RealisticBacktester with equity curve, drawdown, Sharpe/Sortino
-├── orchestration/  # TradeFlow, real-data autopilot pipeline
-└── observability/  # StructuredLogger, InMemoryMetricsSink
-```
-
-### Signal → Intent → Risk → Execution → Portfolio chain
-`core/intent.py` provides `TradeIntent` and `signal_to_intent()`.  
-Risk decisions are structured (`RiskDecision`) with `approved`, `reason`, `checks`, `rejected_rules`, `adjusted_quantity`.
-
-## Installation
+## Install
 
 ```bash
 pip install -e ".[data]"
 ```
 
-## Quick Start
+## 3-Command Offline Demo
 
 ```bash
-make bootstrap        # install dev dependencies
-make lint             # compile-check all Python files
-make test             # run full unit/adapter/smoke test suite
-make smoke            # dry-run hello-world + notebook smoke
-make runbook_check    # verify runbook index exists
-python scripts/framework_status.py
-python scripts/framework_status.py --next-actions-only --score
-python scripts/framework_status.py --write-doc --write-plan
-python scripts/tutorial_mode.py --all --offline
-python scripts/tutorial_mode.py --all --offline --pretty
-python scripts/tutorial_mode.py --all --offline --markdown
-python scripts/tutorial_mode.py --all --offline --write-doc
-python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop
-python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline
-python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline
-python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run
-python scripts/generate_data_coverage_doc.py
-python scripts/refresh_framework_artifacts.py --skip-live
-make refresh_artifacts
+# 1. Run the interactive tutorial (no API key, no internet needed)
+python -m algotradeplan tutorial --offline
+
+# 2. Recommend data sources for a use case
+python -m algotradeplan recommend --use-case crypto_spot_kline --no-api-key
+
+# 3. Check framework status and next actions
+python -m algotradeplan status
 ```
 
-## Research Lab Workflows
-
-- **Preflight (`Can I run this?`)**  
-  `python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop`
-- **Data health (`Is data healthy?`)**  
-  `python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline`
-- **Experiment registry (`What happened in runs?`)**  
-  `python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline`
-- **Executable recipes (`Repeatable scenario`)**  
-  `python scripts/run_recipe.py recipes/crypto_momentum.yaml`
-
-## DataHub / ETL
+## Python API — 3 Examples
 
 ```python
-from algotradeplan.data import DataHub, ETL
+from algotradeplan.data import DataHub
 
 hub = DataHub()
-hub.sources()
-hub.coverage_table()
-hub.dataset_status("coingecko", "kline")
-hub.sources_for(dataset="news")
+
+# Which sources can I use for crypto OHLCV without an API key?
 hub.recommend_sources("crypto_spot_kline", allow_api_key=False)
-hub.recommend_sources("macro_indicators", allow_api_key=False)
-hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False)
+
+# Best public equity kline sources
 hub.best_sources_for(dataset="kline", asset_class="equity", allow_api_key=False)
+
+# Understand a source or dataset
 hub.explain_source("coingecko")
 hub.explain_dataset("funding")
-hub.dataset_sources_matrix(["kline", "news", "macro", "fundamentals"])
-hub.asset_sources_matrix(["crypto_spot", "equity", "macro"])
-hub.discover_assets(source="binance_futures", limit=10)
-hub.ingest(source="coingecko", symbol="bitcoin", datasets=["tick", "kline"], allow_partial=True)
-
-etl = ETL()
-df = etl.load_market_data(
-    source="binance_futures",
-    symbol="BTCUSDT",
-    dataset="kline",
-    timeframe="1m",
-    limit=500,
-)
 ```
 
-## Real Data Smoke Pipeline
+## Main CLI
+
+```
+python -m algotradeplan --help
+
+  status      Framework score, next actions, coverage summary
+  tutorial    End-to-end offline tutorial walkthrough
+  coverage    Regenerate data source coverage docs
+  recommend   Source recommendations for a use case
+  preflight   Check if a pipeline config can run
+  health      Data health report
+  recipe      Execute a YAML recipe
+  refresh     Refresh all generated artifacts (--skip-live for offline)
+  doctor      Environment / API key / doc health check
+  examples    List recipes and use cases
+  explain     Explain a source or dataset
+```
+
+### Workflow Examples
 
 ```bash
+# Preflight check
+python -m algotradeplan preflight \
+  --source coingecko --symbol bitcoin \
+  --datasets kline funding --strategy ema_cross_atr_stop
+
+# Data health
+python -m algotradeplan health \
+  --source offline_fallback --symbol BTCUSDT \
+  --datasets kline funding --offline
+
+# Run a recipe (dry-run)
+python -m algotradeplan recipe recipes/crypto_momentum.yaml --dry-run
+
+# Refresh all generated artifacts (offline-safe)
+python -m algotradeplan refresh --skip-live
+
+# Explain a dataset or source
+python -m algotradeplan explain dataset funding
+python -m algotradeplan explain source coingecko
+```
+
+## Legacy Script Commands (still work)
+
+```bash
+python scripts/framework_status.py --score
+python scripts/framework_status.py --next-actions-only
+python scripts/tutorial_mode.py --all --offline --pretty
+python scripts/refresh_framework_artifacts.py --skip-live
 python scripts/e2e_real_data_smoke.py --interactive --allow-partial
+make smoke_real
 ```
 
-Produces `artifacts/real_data_smoke_report.json` with:
-- source coverage, asset count, selected asset
-- human-readable source coverage table
-- dataset coverage, data quality results
-- provenance manifest
-- normalized record count
-- strategy signal (EMA/ATR)
-- backtest metrics (net PnL, drawdown, Sharpe)
-- risk decision (structured, extensible)
-- execution fill
-- portfolio snapshot (cash, positions, NAV, realized/unrealized PnL)
-- ledger
-- source issues
+## Documentation
 
-`make smoke_real` runs the same pipeline.
+→ **[docs/README.md](docs/README.md)** — full documentation index
 
-## API Key Options (optional — public sources work without keys)
-
-```bash
-export ALPHAVANTAGE_API_KEY="..."
-export TWELVEDATA_API_KEY="..."
-export POLYGON_API_KEY="..."
-export FINNHUB_API_KEY="..."
-export QUANDL_API_KEY="..."
-export IEX_CLOUD_API_KEY="..."
-export FRED_API_KEY="..."
-export FMP_API_KEY="..."
-```
-
-| Variable | Source |
-|---|---|
-| `ALPHAVANTAGE_API_KEY` | Alpha Vantage |
-| `TWELVEDATA_API_KEY` | Twelve Data |
-| `POLYGON_API_KEY` | Polygon.io |
-| `FINNHUB_API_KEY` | Finnhub |
-| `QUANDL_API_KEY` | Nasdaq Data Link |
-| `IEX_CLOUD_API_KEY` | IEX Cloud |
-| `FRED_API_KEY` | FRED |
-| `FMP_API_KEY` | Financial Modeling Prep |
+Key docs:
+- [docs/quickstart.md](docs/quickstart.md) — step-by-step usage
+- [docs/tutorial.md](docs/tutorial.md) — end-to-end tutorial
+- [docs/data_source_coverage.md](docs/data_source_coverage.md) — coverage matrix *(generated)*
+- [docs/source_recommendations.md](docs/source_recommendations.md) — use-case recommendations *(generated)*
+- [docs/framework_status.md](docs/framework_status.md) — project status *(generated)*
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — module design
+- [docs/usage_with_notebooks.md](docs/usage_with_notebooks.md) — notebook workflow guide
 
 ## Notebooks
 
@@ -148,42 +111,37 @@ export FMP_API_KEY="..."
 jupyter lab
 ```
 
-- `notebooks/00_framework_tutorial.ipynb`
-- `notebooks/01_real_data_smoke.ipynb`
-- `notebooks/02_strategy_backtest_portfolio.ipynb`
-- `notebooks/03_multi_source_asset_coverage.ipynb`
+- [notebooks/00_framework_tutorial.ipynb](notebooks/00_framework_tutorial.ipynb) — DataHub → ETL → strategy/backtest → risk/execution → portfolio
+- [notebooks/01_real_data_smoke.ipynb](notebooks/01_real_data_smoke.ipynb) — coverage table + multi-source ingest smoke
+- [notebooks/02_strategy_backtest_portfolio.ipynb](notebooks/02_strategy_backtest_portfolio.ipynb) — ETL + strategy/risk/execution/portfolio chain
+- [notebooks/03_multi_source_asset_coverage.ipynb](notebooks/03_multi_source_asset_coverage.ipynb) — implementation status, API-key filtering, unsupported dataset behavior
 
-Notebook amaçları:
-- `00_framework_tutorial`: baştan sona DataHub → ETL → strategy/backtest → risk/execution → portfolio akışı
-- `01_real_data_smoke`: coverage tablosu + çoklu source ingest smoke
-- `02_strategy_backtest_portfolio`: ETL + strategy/risk/execution/portfolio zinciri
-- `03_multi_source_asset_coverage`: implementation status, API-key filtreleme, unsupported dataset davranışı
-
-Coverage snapshot:
-
-| Source | Asset discovery | Kline/OHLCV | Trades | Orderbook | Funding | Equity | ETF | Forex | Options | Macro | News | Requires API key | API key env |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| binance_futures | yes | yes | yes | yes | yes | no | no | no | no | no | no | no | |
-| yahoo_unofficial | yes | yes | no | no | no | yes | yes | yes | no | no | no | no | |
-| frankfurter_fx | yes | no | no | no | no | no | no | yes | no | yes | no | no | |
-
-## Documentation
-
-- `ONBOARDING.md` / `docs/onboarding_10min.md` — 10-min onboarding
-- `docs/ARCHITECTURE.md` — component diagram and design decisions
-- `docs/quickstart.md` — step-by-step usage
-- `docs/tutorial.md` — CLI + notebook tutorial walkthrough
-- `docs/framework_status.md` — generated framework status / next actions
-- `docs/next_actions.md` — generated priority plan from framework status
-- `docs/data_source_coverage.md` — source/dataset implementation coverage matrix
-- `docs/source_recommendations.md` — generated use-case based source recommendation index
-- `docs/strategy_catalog.md` — strategy compatibility / requirements catalog
-- `docs/extending.md` — adding new plugins
-- `docs/usage_with_notebooks.md` — notebook workflow guide
-- `docs/runbooks/` — operational runbooks
-
-Artifact refresh:
+## Development
 
 ```bash
-python scripts/refresh_framework_artifacts.py --skip-live
+make bootstrap        # install dev dependencies
+make lint             # compile-check all Python
+make test             # full test suite (109 tests)
+make smoke            # dry-run hello-world + notebook smoke
+make runbook_check    # verify runbook index
 ```
+
+## Architecture
+
+```
+src/algotradeplan/
+├── core/           # schemas, intent model, contracts, types
+├── data/           # DataHub, ETL, coverage, query, hub
+├── portfolio/      # PortfolioManager, PositionBook, TradeLedger
+├── plugins/
+│   ├── data/       # market/news/macro sources (23 adapters)
+│   ├── risk/       # RiskEngine, NotionalGuardRiskPlugin
+│   ├── strategies/ # EmaCrossAtrStop, parameter optimizer
+│   ├── indicators/ # EMA, ATR, Bollinger
+│   ├── connectors/ # SimulatedFillExecutionConnector
+│   └── registry    # dynamic plugin loader
+├── backtest/       # RealisticBacktester (equity curve, Sharpe/Sortino)
+├── orchestration/  # TradeFlow, real-data autopilot pipeline
+└── observability/  # StructuredLogger, InMemoryMetricsSink
+```
+
