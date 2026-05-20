@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 _DATASET_ALIASES = {
     "ohlcv": "kline",
@@ -26,6 +26,10 @@ class SourceCapability:
     api_key_env: str | None = None
     rate_limit_notes: str = ""
     quality_level: str = "community"
+    implemented_datasets: list[str] = field(default_factory=list)
+    metadata_only_datasets: list[str] = field(default_factory=list)
+    implementation_status: str = "live_fetch"
+    notes: str = ""
 
 
 CAPABILITIES: tuple[SourceCapability, ...] = (
@@ -78,6 +82,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Unofficial Yahoo chart/search endpoints.",
         quality_level="best_effort",
+        implementation_status="partial",
+        notes="Discovery + tick/kline available via unofficial chart/search responses.",
     ),
     SourceCapability(
         source="alpha_vantage",
@@ -90,6 +96,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="ALPHAVANTAGE_API_KEY",
         rate_limit_notes="Free tier is heavily rate limited.",
         quality_level="production",
+        implementation_status="api_key",
     ),
     SourceCapability(
         source="twelve_data",
@@ -102,6 +109,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="TWELVEDATA_API_KEY",
         rate_limit_notes="API-keyed intraday time series provider.",
         quality_level="production",
+        implementation_status="api_key",
     ),
     SourceCapability(
         source="polygon_io",
@@ -114,6 +122,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="POLYGON_API_KEY",
         rate_limit_notes="Plan-dependent market coverage.",
         quality_level="production",
+        implementation_status="api_key_or_plan",
     ),
     SourceCapability(
         source="finnhub",
@@ -126,6 +135,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="FINNHUB_API_KEY",
         rate_limit_notes="Token-based provider with broad fundamentals/news coverage.",
         quality_level="production",
+        implementation_status="api_key",
     ),
     SourceCapability(
         source="quandl",
@@ -138,6 +148,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="QUANDL_API_KEY",
         rate_limit_notes="Historical and economic data only.",
         quality_level="production",
+        implementation_status="api_key",
     ),
     SourceCapability(
         source="iex_cloud",
@@ -150,6 +161,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="IEX_CLOUD_API_KEY",
         rate_limit_notes="Token required; plan-specific endpoints.",
         quality_level="production",
+        implementation_status="api_key",
     ),
     SourceCapability(
         source="frankfurter_fx",
@@ -170,6 +182,10 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Public crypto market metadata and pricing.",
         quality_level="best_effort",
+        implemented_datasets=["tick", "kline"],
+        metadata_only_datasets=["news"],
+        implementation_status="partial",
+        notes="Public endpoints work without key; pro key can increase limits.",
     ),
     SourceCapability(
         source="stooq",
@@ -180,6 +196,9 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="End-of-day style market coverage.",
         quality_level="best_effort",
+        implemented_datasets=["kline"],
+        implementation_status="live_fetch",
+        notes="Symbols are typically user-provided (e.g. aapl.us).",
     ),
     SourceCapability(
         source="fred",
@@ -190,6 +209,9 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Macro time series provider.",
         quality_level="production",
+        implementation_status="metadata_only",
+        metadata_only_datasets=["macro"],
+        notes="Capability present; DataHub adapter not implemented yet.",
     ),
     SourceCapability(
         source="gdelt",
@@ -200,6 +222,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="News/event metadata feed.",
         quality_level="best_effort",
+        implemented_datasets=["news"],
+        implementation_status="live_fetch",
     ),
     SourceCapability(
         source="financial_modeling_prep",
@@ -210,6 +234,9 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Optional provider for fundamentals and corporate actions.",
         quality_level="best_effort",
+        implementation_status="metadata_only",
+        metadata_only_datasets=["tick", "kline", "fundamentals", "corporate_actions", "news"],
+        notes="Capability metadata only; DataHub adapter not implemented yet.",
     ),
     SourceCapability(
         source="sec_edgar",
@@ -220,6 +247,9 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Filing metadata and disclosures.",
         quality_level="production",
+        implementation_status="metadata_only",
+        metadata_only_datasets=["fundamentals", "news", "corporate_actions"],
+        notes="Capability metadata only; DataHub adapter not implemented yet.",
     ),
     SourceCapability(
         source="world_bank",
@@ -230,6 +260,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Global macro indicators and development statistics.",
         quality_level="production",
+        implemented_datasets=["macro"],
+        implementation_status="live_fetch",
     ),
     SourceCapability(
         source="ecb",
@@ -240,6 +272,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="ECB market and macro reference series.",
         quality_level="production",
+        implemented_datasets=["tick", "macro"],
+        implementation_status="live_fetch",
     ),
     SourceCapability(
         source="defillama",
@@ -250,6 +284,9 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="DeFi TVL and protocol metadata.",
         quality_level="best_effort",
+        implemented_datasets=["macro", "fundamentals"],
+        metadata_only_datasets=["news"],
+        implementation_status="partial",
     ),
     SourceCapability(
         source="hacker_news",
@@ -270,6 +307,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Deterministic fallback used only when live public sources are unreachable.",
         quality_level="fallback",
+        implemented_datasets=["tick", "kline", "trade", "orderbook", "funding"],
+        implementation_status="fallback",
     ),
 )
 

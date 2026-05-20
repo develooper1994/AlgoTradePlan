@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -136,6 +136,25 @@ def normalize_funding(source: str, symbol: str, rows: list[Any]) -> list[Funding
     return normalized
 
 
+def normalize_tick(source: str, symbol: str, rows: list[Any]) -> list[dict[str, Any]]:
+    exchange = _exchange_name(source)
+    normalized: list[dict[str, Any]] = []
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            continue
+        normalized.append(
+            {
+                "symbol": str(row.get("symbol") or symbol),
+                "exchange": exchange,
+                "timestamp_ms": _to_int(row.get("time") or row.get("timestamp"), _now_ms() + index),
+                "price": _to_float(row.get("price") or row.get("lastPrice") or row.get("c"), 0.0),
+                "source": source,
+                "metadata": {"raw": row},
+            }
+        )
+    return normalized
+
+
 def normalize_news(source: str, asset: str, rows: list[Any]) -> list[NewsItem]:
     normalized: list[NewsItem] = []
     for row in rows:
@@ -170,7 +189,27 @@ def normalize_macro(source: str, base_currency: str, payload: dict[str, Any]) ->
     ]
 
 
+def normalize_fundamentals(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = payload if isinstance(payload, list) else [payload]
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        normalized.append(
+            {
+                "symbol": symbol,
+                "source": source,
+                "timestamp_ms": _now_ms(),
+                "fields": row,
+            }
+        )
+    return normalized
+
+
 def normalize_dataset(dataset: str, source: str, symbol: str, payload: Any) -> list[Any]:
+    if dataset == "tick":
+        rows = payload if isinstance(payload, list) else [payload]
+        return normalize_tick(source, symbol, rows)
     if dataset == "kline":
         return normalize_ohlcv(source, symbol, payload if isinstance(payload, list) else [])
     if dataset == "trade":
@@ -184,13 +223,15 @@ def normalize_dataset(dataset: str, source: str, symbol: str, payload: Any) -> l
         return normalize_news(source, symbol, payload if isinstance(payload, list) else [])
     if dataset == "macro":
         return normalize_macro(source, symbol, payload if isinstance(payload, dict) else {})
+    if dataset == "fundamentals":
+        return normalize_fundamentals(source, symbol, payload)
     return []
 
 
 def to_data_records(dataset: str, source: str, asset_type: str, items: list[Any]) -> list[DataRecord]:
     records: list[DataRecord] = []
     for index, item in enumerate(items, start=1):
-        payload = asdict(item)
+        payload = asdict(item) if is_dataclass(item) else dict(item)
         timestamp_ms = int(payload.get("timestamp_ms") or _now_ms() + index)
         symbol = str(payload.get("symbol") or payload.get("base_currency") or payload.get("title") or source)
         records.append(
