@@ -81,6 +81,7 @@ class CLIEntryPointTest(unittest.TestCase):
             "--strategy", "ema_cross_atr_stop",
         )
         # offline_fallback with kline+funding should pass preflight
+        self.assertEqual(result.returncode, 0)
         self.assertIn("can_run:", result.stdout)
 
     def test_doctor_exits_clean(self) -> None:

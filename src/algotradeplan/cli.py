@@ -49,18 +49,19 @@ def _run_script(args: list[str]) -> int:
 
 def cmd_status(args: argparse.Namespace) -> int:
     _ensure_repo_in_path()
-    from scripts.framework_status import build_status_report, render_markdown, render_next_actions_markdown, _redact_sensitive_fields  # type: ignore[import]
+    from scripts.framework_status import build_status_report, render_markdown, _redact_sensitive_fields  # type: ignore[import]
 
     report = build_status_report()
     sanitized = _redact_sensitive_fields(report)
 
     if args.score:
-        print(f"framework_score: {sanitized['framework_score']}/100")
+        score_value: int = sanitized["framework_score"]
+        print(f"framework_score: {score_value}/100")
         if not args.verbose and not args.json:
             return 0
 
     if args.next_actions:
-        priorities = sanitized["priority_actions"]
+        priorities: dict[str, list[str]] = sanitized["priority_actions"]
         numbered = [
             f"[{p}] {entry}"
             for p in ("P0", "P1", "P2", "P3")
@@ -79,20 +80,24 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(render_markdown(sanitized))
         return 0
 
-    # Default: compact summary
-    score = sanitized["framework_score"]
-    p0 = sanitized["priority_actions"].get("P0", [])
-    cov = sanitized.get("coverage_summary", {})
-    gaps = sanitized.get("use_case_coverage_gaps", [])
+    # Default: compact summary — extract only non-sensitive fields
+    fw_score: int = sanitized["framework_score"]
+    top_actions: list[str] = sanitized["priority_actions"].get("P0", [])
+    cov: dict[str, Any] = sanitized.get("coverage_summary", {})
+    use_case_gaps: list[str] = sanitized.get("use_case_coverage_gaps", [])
+    source_count = cov.get("source_count", "?")
+    live_count = cov.get("live_sources_count", "?")
 
-    print(f"framework_score: {score}/100")
-    print(f"sources: {cov.get('source_count', '?')} total, {cov.get('live_sources_count', '?')} live")
-    if p0:
+    print(f"framework_score: {fw_score}/100")
+    print(f"sources: {source_count} total, {live_count} live")
+    if top_actions:
         print("\nTop next actions (P0):")
-        for item in p0[:5]:
-            print(f"  - {item}")
-    if gaps:
-        print(f"\nUse-case gaps: {', '.join(gaps[:3])}" + (f" (+{len(gaps)-3} more)" if len(gaps) > 3 else ""))
+        for action_item in top_actions[:5]:
+            print(f"  - {action_item}")
+    if use_case_gaps:
+        gap_preview = ", ".join(use_case_gaps[:3])
+        extra = f" (+{len(use_case_gaps)-3} more)" if len(use_case_gaps) > 3 else ""
+        print(f"\nUse-case gaps: {gap_preview}{extra}")
     return 0
 
 
@@ -322,15 +327,21 @@ def cmd_explain(args: argparse.Namespace) -> int:
         if args.json:
             print(json.dumps(result, indent=2))
             return 0
-        print(f"Source: {result.get('source', name)}")
-        print(f"  implementation_status: {result.get('implementation_status', '?')}")
-        print(f"  requires_api_key: {result.get('requires_api_key', '?')}")
-        if result.get("api_key_env"):
-            print(f"  api_key_env: {result['api_key_env']}")
-        if result.get("implemented_datasets"):
-            print(f"  datasets: {', '.join(result['implemented_datasets'])}")
-        if result.get("notes"):
-            print(f"  notes: {result['notes']}")
+        source_name: str = result.get("source", name)
+        impl_status: str = result.get("implementation_status", "?")
+        needs_key: object = result.get("requires_api_key", "?")
+        key_env_name: str = result.get("api_key_env", "") or ""
+        datasets_list: list[str] = result.get("implemented_datasets", []) or []
+        source_notes: str = result.get("notes", "") or ""
+        print(f"Source: {source_name}")
+        print(f"  implementation_status: {impl_status}")
+        print(f"  requires_api_key: {needs_key}")
+        if key_env_name:
+            print(f"  api_key_env: {key_env_name}")
+        if datasets_list:
+            print(f"  datasets: {', '.join(datasets_list)}")
+        if source_notes:
+            print(f"  notes: {source_notes}")
         return 0
 
     if kind == "dataset":
@@ -338,11 +349,14 @@ def cmd_explain(args: argparse.Namespace) -> int:
         if args.json:
             print(json.dumps(result, indent=2))
             return 0
-        print(f"Dataset: {result.get('dataset', name)}")
-        print(f"  description: {result.get('description', '?')}")
-        if result.get("best_sources_no_api_key"):
-            sources = [s["source"] for s in result["best_sources_no_api_key"]]
-            print(f"  best_sources (no API key): {', '.join(sources)}")
+        dataset_name: str = result.get("dataset", name)
+        dataset_desc: str = result.get("description", "?")
+        best_public: list[dict[str, Any]] = result.get("best_sources_no_api_key", []) or []
+        print(f"Dataset: {dataset_name}")
+        print(f"  description: {dataset_desc}")
+        if best_public:
+            public_source_names = [s["source"] for s in best_public]
+            print(f"  best_sources (no API key): {', '.join(public_source_names)}")
         return 0
 
     print(f"Unknown explain kind: {kind}. Use 'source' or 'dataset'.")
