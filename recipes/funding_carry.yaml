@@ -1,0 +1,11 @@
+name: funding_carry_offline
+source: offline_fallback
+symbol: BTCUSDT
+datasets: [funding, kline]
+strategy: funding_carry
+allow_partial: true
+offline: true
+risk:
+  max_notional: 3000
+portfolio:
+  starting_cash: 15000

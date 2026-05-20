@@ -1,0 +1,11 @@
+name: equity_daily_ohlcv_demo
+source: stooq
+symbol: aapl.us
+datasets: [kline]
+strategy: ema_cross_atr_stop
+allow_partial: true
+offline: false
+risk:
+  max_notional: 5000
+portfolio:
+  starting_cash: 20000

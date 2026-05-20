@@ -45,10 +45,25 @@ python scripts/tutorial_mode.py --all --offline
 python scripts/tutorial_mode.py --all --offline --pretty
 python scripts/tutorial_mode.py --all --offline --markdown
 python scripts/tutorial_mode.py --all --offline --write-doc
+python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop
+python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline
+python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline
+python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run
 python scripts/generate_data_coverage_doc.py
 python scripts/refresh_framework_artifacts.py --skip-live
 make refresh_artifacts
 ```
+
+## Research Lab Workflows
+
+- **Preflight (`Can I run this?`)**  
+  `python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop`
+- **Data health (`Is data healthy?`)**  
+  `python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline`
+- **Experiment registry (`What happened in runs?`)**  
+  `python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline`
+- **Executable recipes (`Repeatable scenario`)**  
+  `python scripts/run_recipe.py recipes/crypto_momentum.yaml`
 
 ## DataHub / ETL
 
@@ -162,6 +177,7 @@ Coverage snapshot:
 - `docs/next_actions.md` — generated priority plan from framework status
 - `docs/data_source_coverage.md` — source/dataset implementation coverage matrix
 - `docs/source_recommendations.md` — generated use-case based source recommendation index
+- `docs/strategy_catalog.md` — strategy compatibility / requirements catalog
 - `docs/extending.md` — adding new plugins
 - `docs/usage_with_notebooks.md` — notebook workflow guide
 - `docs/runbooks/` — operational runbooks

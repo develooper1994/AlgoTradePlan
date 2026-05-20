@@ -23,6 +23,44 @@ def main() -> None:
         ("coverage_and_recommendations_doc", [sys.executable, "scripts/generate_data_coverage_doc.py"], True),
         ("tutorial_walkthrough", [sys.executable, "scripts/tutorial_mode.py", "--all", "--offline", "--write-doc"], True),
         ("framework_status", [sys.executable, "scripts/framework_status.py", "--write-doc", "--write-plan"], True),
+        (
+            "offline_data_health",
+            [
+                sys.executable,
+                "scripts/data_health_report.py",
+                "--source",
+                "offline_fallback",
+                "--symbol",
+                "BTCUSDT",
+                "--datasets",
+                "kline",
+                "funding",
+                "--offline",
+                "--json",
+            ],
+            True,
+        ),
+        (
+            "offline_experiment_demo",
+            [
+                sys.executable,
+                "scripts/run_experiment.py",
+                "--source",
+                "offline_fallback",
+                "--symbol",
+                "BTCUSDT",
+                "--strategy",
+                "ema_cross_atr_stop",
+                "--offline",
+                "--json",
+            ],
+            True,
+        ),
+        (
+            "recipe_dry_run",
+            [sys.executable, "scripts/run_recipe.py", "recipes/crypto_momentum.yaml", "--dry-run", "--json"],
+            True,
+        ),
     ]
     if not args.skip_live:
         steps.append(

@@ -1,0 +1,11 @@
+name: crypto_momentum_offline
+source: offline_fallback
+symbol: BTCUSDT
+datasets: [kline, funding]
+strategy: ema_cross_atr_stop
+allow_partial: true
+offline: true
+risk:
+  max_notional: 10000
+portfolio:
+  starting_cash: 10000

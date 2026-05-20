@@ -1,0 +1,11 @@
+name: macro_news_monitor_dry
+source: world_bank
+symbol: NY.GDP.MKTP.CD
+datasets: [macro, news]
+strategy: macro_regime
+allow_partial: true
+offline: false
+risk:
+  max_notional: 1000
+portfolio:
+  starting_cash: 10000
