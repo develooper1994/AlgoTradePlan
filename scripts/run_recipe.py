@@ -122,9 +122,6 @@ def main() -> None:
     }
 
     if args.dry_run:
-        if args.json:
-            print(json.dumps(payload, indent=2, default=str))
-            return
         print(json.dumps(payload, indent=2, default=str))
         return
 
@@ -149,9 +146,6 @@ def main() -> None:
     )
     payload.update({"experiment": record.to_dict(), **flow})
 
-    if args.json:
-        print(json.dumps(payload, indent=2, default=str))
-        return
     print(json.dumps(payload, indent=2, default=str))
 
 
