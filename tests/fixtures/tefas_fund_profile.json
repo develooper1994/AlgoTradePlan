@@ -1,0 +1,15 @@
+{
+  "resultList": [
+    {
+      "fonKodu": "AFT",
+      "fonUnvan": "AFT Fonu",
+      "isin_kodu": "TRYAFT000001",
+      "kategori": "Hisse Senedi Fonu",
+      "fon_risk_degeri": 6,
+      "yatirimci_sayisi": 15234,
+      "fon_toplam_deger_tl": 123456789.0,
+      "kap_bilgi_adresi": "https://www.kap.org.tr/tr/fon-bilgileri/ozet/AFT",
+      "platform_islem_goruyor": true
+    }
+  ]
+}

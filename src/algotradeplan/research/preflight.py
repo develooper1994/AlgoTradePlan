@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -67,6 +68,16 @@ class PreflightChecker:
             )
 
         notes_text = str(summary.get("notes") or "")
+        extra_metadata = summary.get("extra_metadata", {})
+        optional_env = extra_metadata.get("optional_env", [])
+        if source_name == "tefas_public" and isinstance(optional_env, list):
+            has_optional_runtime = any(os.getenv(str(name), "").strip() for name in optional_env)
+            if not has_optional_runtime:
+                blocking_issues.append("optional_dependency_missing:tefas-cli")
+                suggestion = str(extra_metadata.get("preflight_suggestion") or "")
+                if suggestion:
+                    suggestions.append(suggestion)
+
         for dataset, status in dataset_statuses.items():
             if status == "unsupported":
                 blocking_issues.append(f"{dataset} unsupported by {source_name}")
@@ -89,8 +100,8 @@ class PreflightChecker:
             if status in {"partial", "fallback"}:
                 warnings.append(f"{source_name} {dataset} status is {status}")
 
-            extra_metadata = summary.get("extra_metadata", {}).get(dataset, {})
-            if isinstance(extra_metadata, dict) and extra_metadata.get("synthetic_ohlcv"):
+            dataset_metadata = summary.get("extra_metadata", {}).get(dataset, {})
+            if isinstance(dataset_metadata, dict) and dataset_metadata.get("synthetic_ohlcv"):
                 warnings.append(f"{source_name} {dataset} is synthetic/derived OHLCV")
             if "synthetic" in notes_text.lower() and dataset == "kline":
                 warnings.append(notes_text)

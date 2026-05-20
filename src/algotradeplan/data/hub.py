@@ -257,6 +257,10 @@ class DataHub:
             limit=limit,
             **fetch_options,
         ) if fetchable else {}
+        adapter_issues = raw_datasets.pop("__issues__", {}) if isinstance(raw_datasets, dict) else {}
+        if isinstance(adapter_issues, dict):
+            for dataset, reason in adapter_issues.items():
+                source_issues_by_dataset[str(dataset)] = str(reason)
         normalized: dict[str, list[dict[str, Any]]] = {}
         records: list[DataRecord] = []
         issues: list[dict[str, str]] = []

@@ -17,6 +17,7 @@ from src.algotradeplan.data.adapters.market_registry_adapter import build_market
 from src.algotradeplan.data.adapters.offline_fallback import OfflineFallbackAdapter
 from src.algotradeplan.data.adapters.sec_edgar import SecEdgarAdapter
 from src.algotradeplan.data.adapters.stooq import StooqAdapter
+from src.algotradeplan.data.adapters.tefas_cli import TefasCliAdapter
 from src.algotradeplan.data.adapters.world_bank import WorldBankAdapter
 from src.algotradeplan.data.adapters.registry import DataAdapterRegistry
 
@@ -36,6 +37,7 @@ def build_default_adapter_registry(json_getter: Any) -> DataAdapterRegistry:
         FredAdapter(json_getter),
         SecEdgarAdapter(json_getter),
         FinancialModelingPrepAdapter(json_getter),
+        TefasCliAdapter(),
     ]
     return DataAdapterRegistry(adapters)
 

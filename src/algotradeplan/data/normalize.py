@@ -47,6 +47,34 @@ def _to_epoch_ms(value: Any, default: int) -> int:
     return _to_int(value, default)
 
 
+def _to_optional_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _pick(mapping: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in mapping and mapping[key] not in (None, ""):
+            return mapping[key]
+    return None
+
+
+def _to_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "evet", "yes"}:
+            return True
+        if normalized in {"false", "0", "hayir", "hayır", "no"}:
+            return False
+    return None
+
+
 def _exchange_name(source: str) -> str:
     if source.endswith("_spot"):
         return source.removesuffix("_spot")
@@ -242,6 +270,183 @@ def normalize_corporate_actions(source: str, symbol: str, payload: Any) -> list[
     return normalized
 
 
+def _tefas_dict_rows(payload: Any) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    if isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, dict) and "data" in item and "operation" in item:
+                rows.extend(_tefas_dict_rows(item.get("data")))
+            elif isinstance(item, dict):
+                rows.append(item)
+        return rows
+    if isinstance(payload, dict):
+        for key in ("resultList", "rows", "items", "data"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+        return [payload]
+    return []
+
+
+def normalize_tefas_fund_nav(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for index, row in enumerate(rows, start=1):
+        timestamp_ms = _to_epoch_ms(_pick(row, "timestamp_ms", "tarih", "date", "timestamp"), _now_ms() + index)
+        normalized.append(
+            {
+                "date": str(_pick(row, "tarih", "date") or ""),
+                "timestamp_ms": timestamp_ms,
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "fund_name": str(_pick(row, "fonUnvan", "fund_name", "name") or symbol),
+                "nav": _to_float(_pick(row, "fiyat", "nav", "price"), 0.0),
+                "currency": str(_pick(row, "dovizCinsi", "currency") or "TRY"),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_fund_profile(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        normalized.append(
+            {
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "fund_name": str(_pick(row, "fonUnvan", "fund_name", "name") or symbol),
+                "isin": str(_pick(row, "isin_kodu", "isin", "isinCode") or ""),
+                "category": str(_pick(row, "kategori", "category") or ""),
+                "risk_value": _to_optional_float(_pick(row, "fon_risk_degeri", "risk_value", "risk")),
+                "investor_count": _to_int(_pick(row, "yatirimci_sayisi", "investor_count") or 0, 0),
+                "total_value_try": _to_optional_float(_pick(row, "fon_toplam_deger_tl", "total_value_try", "total_value")),
+                "kap_url": str(_pick(row, "kap_bilgi_adresi", "kap_url") or ""),
+                "platform_tradable": _to_bool(_pick(row, "platform_islem_goruyor", "platform_tradable")),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_fund_return(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        normalized.append(
+            {
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "return_1m_pct": _to_optional_float(_pick(row, "return_1m_pct", "getiri_1a", "Aylik", "bir_ay")),
+                "return_3m_pct": _to_optional_float(_pick(row, "return_3m_pct", "getiri_3a", "UcAylik", "uc_ay")),
+                "return_6m_pct": _to_optional_float(_pick(row, "return_6m_pct", "getiri_6a", "AltiAylik", "alti_ay")),
+                "return_1y_pct": _to_optional_float(_pick(row, "return_1y_pct", "getiri_1y", "BirYillik", "bir_yil")),
+                "return_3y_pct": _to_optional_float(_pick(row, "return_3y_pct", "getiri_3y", "UcYillik", "uc_yil")),
+                "return_5y_pct": _to_optional_float(_pick(row, "return_5y_pct", "getiri_5y", "BesYillik", "bes_yil")),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_fund_allocation(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        normalized.append(
+            {
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "asset_type": str(_pick(row, "asset_type", "varlikTuru", "dagilimGrubu", "name") or ""),
+                "weight_pct": _to_optional_float(_pick(row, "weight_pct", "oran", "yuzde", "weight")),
+                "date": str(_pick(row, "tarih", "date") or ""),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_fund_size(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        normalized.append(
+            {
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "date": str(_pick(row, "tarih", "date") or ""),
+                "aum_try": _to_optional_float(_pick(row, "aum_try", "fon_toplam_deger_tl", "buyukluk", "value")),
+                "share_count": _to_optional_float(_pick(row, "share_count", "pay_sayisi", "shares")),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_fund_fee(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        normalized.append(
+            {
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "management_fee_pct": _to_optional_float(_pick(row, "management_fee_pct", "yonetim_ucreti", "managementFee")),
+                "expense_ratio_pct": _to_optional_float(_pick(row, "expense_ratio_pct", "gider_orani", "expenseRatio")),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_announcements(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        normalized.append(
+            {
+                "fund_code": str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper(),
+                "title": str(_pick(row, "title", "duyuruBaslik", "baslik") or ""),
+                "kap_url": str(_pick(row, "kap_url", "kap_bilgi_adresi", "url") or ""),
+                "announcement_id": str(_pick(row, "announcement_id", "duyuruId", "id") or ""),
+                "source": source,
+            }
+        )
+    return normalized
+
+
+def normalize_tefas_statistics(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = _tefas_dict_rows(payload)
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        fund_code = str(_pick(row, "fonKodu", "fund_code", "symbol") or symbol).upper()
+        metric = _pick(row, "metric", "metrik", "name")
+        value = _pick(row, "value", "deger")
+        if metric is not None and value is not None:
+            normalized.append(
+                {
+                    "fund_code": fund_code,
+                    "metric": str(metric),
+                    "value": value,
+                    "period": str(_pick(row, "period", "donem", "date") or ""),
+                    "currency": str(_pick(row, "currency", "dovizCinsi") or ""),
+                    "source": source,
+                }
+            )
+            continue
+        for key, raw_value in row.items():
+            if key in {"fonKodu", "fund_code", "symbol", "date", "tarih", "period", "donem", "currency", "dovizCinsi"}:
+                continue
+            if isinstance(raw_value, (dict, list)):
+                continue
+            normalized.append(
+                {
+                    "fund_code": fund_code,
+                    "metric": str(key),
+                    "value": raw_value,
+                    "period": str(_pick(row, "period", "donem", "date", "tarih") or ""),
+                    "currency": str(_pick(row, "currency", "dovizCinsi") or ""),
+                    "source": source,
+                }
+            )
+    return normalized
+
+
 def normalize_dataset(dataset: str, source: str, symbol: str, payload: Any) -> list[Any]:
     if dataset == "tick":
         rows = payload if isinstance(payload, list) else [payload]
@@ -263,6 +468,22 @@ def normalize_dataset(dataset: str, source: str, symbol: str, payload: Any) -> l
         return normalize_fundamentals(source, symbol, payload)
     if dataset == "corporate_actions":
         return normalize_corporate_actions(source, symbol, payload)
+    if dataset == "fund_nav":
+        return normalize_tefas_fund_nav(source, symbol, payload)
+    if dataset == "fund_profile":
+        return normalize_tefas_fund_profile(source, symbol, payload)
+    if dataset == "fund_return":
+        return normalize_tefas_fund_return(source, symbol, payload)
+    if dataset == "fund_allocation":
+        return normalize_tefas_fund_allocation(source, symbol, payload)
+    if dataset == "fund_size":
+        return normalize_tefas_fund_size(source, symbol, payload)
+    if dataset == "fund_fee":
+        return normalize_tefas_fund_fee(source, symbol, payload)
+    if dataset == "fund_announcement":
+        return normalize_tefas_announcements(source, symbol, payload)
+    if dataset == "fund_statistics":
+        return normalize_tefas_statistics(source, symbol, payload)
     return []
 
 

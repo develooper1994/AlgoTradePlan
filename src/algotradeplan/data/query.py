@@ -75,6 +75,44 @@ _USE_CASE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "prefer_live": False,
         "notes_hint": "offline_fallback should only be used for tutorial/smoke/demo flows.",
     },
+    "tefas_fund_nav": {
+        "datasets": ["fund_nav"],
+        "asset_classes": ["mutual_fund", "pension_fund"],
+        "description": "TEFAS fund NAV history",
+        "preferred_sources": ["tefas_public"],
+    },
+    "tefas_fund_profile": {
+        "datasets": ["fund_profile"],
+        "asset_classes": ["mutual_fund", "pension_fund"],
+        "description": "TEFAS fund profile/details",
+        "preferred_sources": ["tefas_public"],
+    },
+    "tefas_fund_returns": {
+        "datasets": ["fund_return"],
+        "asset_classes": ["mutual_fund", "pension_fund"],
+        "description": "TEFAS fund return snapshots",
+        "preferred_sources": ["tefas_public"],
+    },
+    "tefas_fund_allocation": {
+        "datasets": ["fund_allocation"],
+        "asset_classes": ["mutual_fund", "pension_fund"],
+        "description": "TEFAS fund allocation composition",
+        "preferred_sources": ["tefas_public"],
+    },
+    "tefas_fund_screener": {
+        "datasets": ["fund_profile", "fund_return", "fund_size", "fund_fee"],
+        "asset_classes": ["mutual_fund", "pension_fund"],
+        "description": "TEFAS fund screener",
+        "preferred_sources": ["tefas_public"],
+        "notes_hint": "Optional tefas-cli integration is required for live fetch.",
+    },
+    "tefas_fund_research": {
+        "datasets": ["fund_nav", "fund_profile", "fund_return", "fund_allocation"],
+        "asset_classes": ["mutual_fund", "pension_fund"],
+        "description": "TEFAS fund research flow",
+        "preferred_sources": ["tefas_public"],
+        "notes_hint": "Optional tefas-cli integration is required for live fetch.",
+    },
 }
 
 

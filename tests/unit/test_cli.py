@@ -72,6 +72,11 @@ class CLIEntryPointTest(unittest.TestCase):
         self.assertGreater(len(payload), 0)
         self.assertIn("source", payload[0])
 
+    def test_recommend_tefas_use_case(self) -> None:
+        result = self._run("recommend", "--use-case", "tefas_fund_screener", "--no-api-key")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("tefas_public", result.stdout)
+
     def test_preflight_offline(self) -> None:
         result = self._run(
             "preflight",
@@ -88,6 +93,7 @@ class CLIEntryPointTest(unittest.TestCase):
         result = self._run("doctor")
         # May have issues with missing artifacts in CI, but should not crash
         self.assertIn("AlgoTradePlan Doctor", result.stdout)
+        self.assertIn("TEFAS integration", result.stdout)
 
     def test_examples_lists_use_cases_and_recipes(self) -> None:
         result = self._run("examples")

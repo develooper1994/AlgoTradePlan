@@ -1,0 +1,6 @@
+name: tefas_fund_screener
+source: tefas_public
+symbol: AFT
+datasets: [fund_profile, fund_return, fund_size, fund_fee]
+strategy: fund_momentum
+allow_partial: true
