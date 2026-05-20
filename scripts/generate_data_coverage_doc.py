@@ -104,9 +104,9 @@ def _recommendation_table_rows_from_index(
         all_recommendations = all_recommendations_by_use_case.get(use_case, [])
         public_recommendations = public_recommendations_by_use_case.get(use_case, [])
         best = public_recommendations[:2] or all_recommendations[:2]
-        best_sources = {row["source"] for row in best}
+        best_source_names = {row["source"] for row in best}
         alternatives = [
-            item for item in all_recommendations if item["source"] not in best_sources
+            item for item in all_recommendations if item["source"] not in best_source_names
         ][:2]
         if best:
             notes = best[0]["reason"]
@@ -134,7 +134,7 @@ def generate_source_recommendations(
 ) -> str:
     selected_hub = hub or DataHub()
     all_recommendations = all_recommendations_by_use_case or {
-        use_case: selected_hub.recommend_sources(use_case, allow_api_key=True, limit=5) for use_case in USE_CASES
+        use_case: selected_hub.recommend_sources(use_case, allow_api_key=True, limit=6) for use_case in USE_CASES
     }
     rows = recommendation_rows or _recommendation_table_rows(selected_hub)
     table = _markdown_table(rows, ["Use case", "Best sources", "Alternatives", "API key needed", "Notes"])
