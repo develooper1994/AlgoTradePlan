@@ -101,8 +101,9 @@ def main() -> None:
     datasets = [str(item) for item in recipe.get("datasets", ["kline"])]
     strategy = str(recipe.get("strategy", "ema_cross_atr_stop"))
     allow_partial = bool(recipe.get("allow_partial", False) or recipe.get("offline", False))
+    hub = DataHub()
 
-    preflight = PreflightChecker(DataHub()).check(
+    preflight = PreflightChecker(hub).check(
         source=str(source),
         symbol=symbol,
         datasets=datasets,
@@ -111,7 +112,7 @@ def main() -> None:
     )
 
     health = generate_data_health_report(
-        hub=DataHub(),
+        hub=hub,
         source=str(source),
         symbol=symbol,
         datasets=datasets,
@@ -133,6 +134,7 @@ def main() -> None:
         raise SystemExit(f"preflight_failed: {preflight.blocking_issues}")
 
     flow = _run_strategy_flow(
+        hub=hub,
         source=str(source),
         symbol=symbol,
         strategy_id=strategy,

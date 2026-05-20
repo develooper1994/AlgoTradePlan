@@ -21,13 +21,13 @@ from src.algotradeplan.strategies.catalog import strategy_summary
 
 def _run_strategy_flow(
     *,
+    hub: DataHub,
     source: str,
     symbol: str,
     strategy_id: str,
     datasets: list[str],
     allow_partial: bool,
 ) -> dict[str, Any]:
-    hub = DataHub()
     ingest = hub.ingest(source=source, symbol=symbol, datasets=datasets, allow_partial=allow_partial, store=False)
     candles = ingest.to_feature_frame(dataset="kline")
     rows = candles.to_dict(orient="records") if hasattr(candles, "to_dict") else list(candles)
@@ -117,10 +117,11 @@ def main() -> None:
         raise SystemExit("--symbol is required")
 
     strategy = strategy_summary(args.strategy)
+    hub = DataHub()
     source = "offline_fallback" if args.offline else str(args.source)
     datasets = list(strategy["required_datasets"])
 
-    preflight = PreflightChecker(DataHub()).check(
+    preflight = PreflightChecker(hub).check(
         source=source,
         symbol=args.symbol,
         datasets=datasets,
@@ -131,6 +132,7 @@ def main() -> None:
         raise SystemExit(f"preflight_failed: {preflight.blocking_issues}")
 
     run = _run_strategy_flow(
+        hub=hub,
         source=source,
         symbol=args.symbol,
         strategy_id=str(args.strategy),

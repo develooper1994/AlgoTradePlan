@@ -82,13 +82,31 @@ def _api_key_label(items: list[dict[str, str]]) -> str:
 
 
 def _recommendation_table_rows(hub: DataHub) -> list[dict[str, str]]:
+    all_recommendations_by_use_case = {
+        use_case: hub.recommend_sources(use_case, allow_api_key=True, limit=6) for use_case in USE_CASES
+    }
+    public_recommendations_by_use_case = {
+        use_case: hub.recommend_sources(use_case, allow_api_key=False, limit=6) for use_case in USE_CASES
+    }
+    return _recommendation_table_rows_from_index(
+        all_recommendations_by_use_case=all_recommendations_by_use_case,
+        public_recommendations_by_use_case=public_recommendations_by_use_case,
+    )
+
+
+def _recommendation_table_rows_from_index(
+    *,
+    all_recommendations_by_use_case: dict[str, list[dict[str, str]]],
+    public_recommendations_by_use_case: dict[str, list[dict[str, str]]],
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for use_case in USE_CASES:
-        all_recommendations = hub.recommend_sources(use_case, allow_api_key=True, limit=6)
-        public_recommendations = hub.recommend_sources(use_case, allow_api_key=False, limit=6)
+        all_recommendations = all_recommendations_by_use_case.get(use_case, [])
+        public_recommendations = public_recommendations_by_use_case.get(use_case, [])
         best = public_recommendations[:2] or all_recommendations[:2]
+        best_sources = {row["source"] for row in best}
         alternatives = [
-            item for item in all_recommendations if item["source"] not in {row["source"] for row in best}
+            item for item in all_recommendations if item["source"] not in best_sources
         ][:2]
         if best:
             notes = best[0]["reason"]
@@ -107,13 +125,22 @@ def _recommendation_table_rows(hub: DataHub) -> list[dict[str, str]]:
     return rows
 
 
-def generate_source_recommendations(path: Path = SOURCE_RECOMMENDATIONS_DOC_PATH) -> str:
-    hub = DataHub()
-    rows = _recommendation_table_rows(hub)
+def generate_source_recommendations(
+    path: Path = SOURCE_RECOMMENDATIONS_DOC_PATH,
+    *,
+    hub: DataHub | None = None,
+    recommendation_rows: list[dict[str, str]] | None = None,
+    all_recommendations_by_use_case: dict[str, list[dict[str, str]]] | None = None,
+) -> str:
+    selected_hub = hub or DataHub()
+    all_recommendations = all_recommendations_by_use_case or {
+        use_case: selected_hub.recommend_sources(use_case, allow_api_key=True, limit=5) for use_case in USE_CASES
+    }
+    rows = recommendation_rows or _recommendation_table_rows(selected_hub)
     table = _markdown_table(rows, ["Use case", "Best sources", "Alternatives", "API key needed", "Notes"])
     detail_lines = ["# Source Recommendations", "", "Bu doküman DataHub `recommend_sources()` API'sinden üretilir.", "", "## Recommended Sources by Use Case", "", table, ""]
     for use_case in USE_CASES:
-        recommendations = hub.recommend_sources(use_case, allow_api_key=True, limit=5)
+        recommendations = all_recommendations.get(use_case, [])[:5]
         detail_lines.extend([f"### {use_case}", ""])
         if not recommendations:
             detail_lines.extend(["- _none_", ""])
@@ -130,12 +157,14 @@ def generate_source_recommendations(path: Path = SOURCE_RECOMMENDATIONS_DOC_PATH
 
 def generate(path: Path = DOC_PATH, *, source_recommendations_path: Path = SOURCE_RECOMMENDATIONS_DOC_PATH) -> str:
     hub = DataHub()
+    sources = hub.sources()
     rows = hub.coverage_table()
-    summaries = [hub.source_summary(source) for source in hub.sources()]
+    summaries = [hub.source_summary(source) for source in sources]
+    summaries_by_source = {summary["source"]: summary for summary in summaries}
     dataset_index: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     asset_index: dict[str, list[str]] = defaultdict(list)
-    for source in hub.sources():
-        summary = hub.source_summary(source)
+    for source in sources:
+        summary = summaries_by_source[source]
         for dataset, status in summary["dataset_statuses"].items():
             if status != "unsupported":
                 dataset_index[dataset][status].append(source)
@@ -174,12 +203,26 @@ def generate(path: Path = DOC_PATH, *, source_recommendations_path: Path = SOURC
     asset_rows = [{"Asset class": asset, "Sources": ", ".join(sorted(asset_index[asset]))} for asset in sorted(asset_index)]
     asset_table = _markdown_table(asset_rows, ["Asset class", "Sources"])
     full_matrix = _markdown_table(rows, COLUMNS)
-    recommendation_rows = _recommendation_table_rows(hub)
+    all_recommendations_by_use_case = {
+        use_case: hub.recommend_sources(use_case, allow_api_key=True, limit=6) for use_case in USE_CASES
+    }
+    public_recommendations_by_use_case = {
+        use_case: hub.recommend_sources(use_case, allow_api_key=False, limit=6) for use_case in USE_CASES
+    }
+    recommendation_rows = _recommendation_table_rows_from_index(
+        all_recommendations_by_use_case=all_recommendations_by_use_case,
+        public_recommendations_by_use_case=public_recommendations_by_use_case,
+    )
     recommendation_table = _markdown_table(
         recommendation_rows,
         ["Use case", "Best sources", "Alternatives", "API key needed", "Notes"],
     )
-    generate_source_recommendations(source_recommendations_path)
+    generate_source_recommendations(
+        source_recommendations_path,
+        hub=hub,
+        recommendation_rows=recommendation_rows,
+        all_recommendations_by_use_case=all_recommendations_by_use_case,
+    )
 
     content = (
         "# Data Source Coverage\n\n"
