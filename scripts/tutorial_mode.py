@@ -20,7 +20,12 @@ from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import EmaCrossAtrS
 from src.algotradeplan.portfolio.manager import PortfolioManager
 
 ARTIFACT_ROOT = REPO_ROOT / "artifacts" / "tutorial"
-def _sanitize_output(value: object) -> object:
+PRINTABLE_DATASETS = ["tick", "kline", "trade", "orderbook", "funding", "macro", "fundamentals", "news"]
+FALLBACK_CANDLE = {"high": 101.0, "low": 99.0, "close": 100.0}
+FALLBACK_CANDLE_COUNT = 25
+
+
+def _redact_sensitive_fields(value: object) -> object:
     if isinstance(value, dict):
         sanitized: dict[object, object] = {}
         for key, item in value.items():
@@ -28,10 +33,10 @@ def _sanitize_output(value: object) -> object:
             if any(token in lowered for token in ("api_key", "token", "password", "secret")):
                 sanitized[key] = "<redacted>"
             else:
-                sanitized[key] = _sanitize_output(item)
+                sanitized[key] = _redact_sensitive_fields(item)
         return sanitized
     if isinstance(value, list):
-        return [_sanitize_output(item) for item in value]
+        return [_redact_sensitive_fields(item) for item in value]
     return value
 
 
@@ -65,7 +70,7 @@ def build_tutorial_results(
     discovered_assets = hub.discover_assets(selected_source, limit=5)
     selected_symbol = symbol or (discovered_assets[0] if discovered_assets else "BTCUSDT")
     implemented = hub.available_datasets(selected_source, implemented_only=True)
-    preferred = [name for name in ["tick", "kline", "trade", "orderbook", "funding", "macro", "fundamentals", "news"] if name in implemented]
+    preferred = [name for name in PRINTABLE_DATASETS if name in implemented]
     if not preferred:
         raise SystemExit(f"Tutorial source {selected_source} does not have implemented datasets.")
 
@@ -83,7 +88,7 @@ def build_tutorial_results(
         "symbol": selected_symbol,
         "price": float(candle_rows[-1]["close"] if candle_rows else 100.0),
         "quantity": 0.25,
-        "candles": candle_rows[-60:] if candle_rows else [{"high": 101.0, "low": 99.0, "close": 100.0}] * 25,
+        "candles": candle_rows[-60:] if candle_rows else [FALLBACK_CANDLE] * FALLBACK_CANDLE_COUNT,
     }
     signal = strategy.generate_signal(context)
     trade_intent = signal_to_intent(
@@ -150,7 +155,7 @@ def build_tutorial_results(
 
 
 def _print_steps(steps: list[dict[str, Any]]) -> None:
-    print(json.dumps(_sanitize_output(steps), indent=2, default=str))
+    print(json.dumps(_redact_sensitive_fields(steps), indent=2, default=str))
 
 
 def main() -> None:

@@ -232,7 +232,7 @@ def normalize_corporate_actions(source: str, symbol: str, payload: Any) -> list[
                 "symbol": symbol,
                 "source": source,
                 "timestamp_ms": _now_ms(),
-                "action": row.get("form") or row.get("label") or row.get("type") or "corporate_action",
+                "action": row.get("form") or row.get("label") or row.get("type") or "unknown_action",
                 "fields": row,
             }
         )

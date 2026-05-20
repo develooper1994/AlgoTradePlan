@@ -86,5 +86,11 @@ class SecEdgarAdapter:
 
 
 def _filing_url(cik: str, accession: str, document: str) -> str:
+    if not accession or not document:
+        return ""
     cleaned_accession = accession.replace("-", "")
-    return f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{cleaned_accession}/{document}" if accession and document else ""
+    try:
+        cik_number = int(cik)
+    except (TypeError, ValueError):
+        return ""
+    return f"https://www.sec.gov/Archives/edgar/data/{cik_number}/{cleaned_accession}/{document}"

@@ -26,7 +26,7 @@ EXPECTED_TESTS = [
 ]
 
 
-def _sanitize_output(value: object) -> object:
+def _redact_sensitive_fields(value: object) -> object:
     if isinstance(value, dict):
         sanitized: dict[object, object] = {}
         for key, item in value.items():
@@ -34,10 +34,10 @@ def _sanitize_output(value: object) -> object:
             if any(token in lowered for token in ("api_key", "token", "password", "secret")):
                 sanitized[key] = "<redacted>"
             else:
-                sanitized[key] = _sanitize_output(item)
+                sanitized[key] = _redact_sensitive_fields(item)
         return sanitized
     if isinstance(value, list):
-        return [_sanitize_output(item) for item in value]
+        return [_redact_sensitive_fields(item) for item in value]
     return value
 
 
@@ -187,7 +187,7 @@ def main() -> None:
     if args.write_doc:
         DOC_PATH.write_text(render_markdown(report), encoding="utf-8")
     if args.json:
-        print(json.dumps(_sanitize_output(report), indent=2))
+        print(json.dumps(_redact_sensitive_fields(report), indent=2))
         return
     print(render_markdown(report))
 

@@ -14,6 +14,7 @@ _DATASET_ALIASES = {
     "macro_series": "macro",
 }
 
+# Canonical coverage/query status values used across DataHub capability APIs and docs.
 STATUS_VALUES = (
     "live",
     "partial",
