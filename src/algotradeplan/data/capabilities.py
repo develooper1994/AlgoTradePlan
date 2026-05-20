@@ -121,7 +121,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         implemented_datasets=["tick", "kline"],
         metadata_only_datasets=["fundamentals"],
         implementation_status="api_key",
-        notes="Framework fetches tick/kline via the market registry adapter; fundamentals remain capability metadata only.",
+        notes="Framework fetches tick/kline via the market registry adapter; fundamentals remain capability metadata only and ingest reports api_key_required when the key is missing.",
     ),
     SourceCapability(
         source="twelve_data",
@@ -167,7 +167,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         implemented_datasets=["tick", "kline"],
         metadata_only_datasets=["news", "fundamentals"],
         implementation_status="api_key",
-        notes="Framework exposes market data fetches; fundamentals/news are capability metadata for future adapter expansion.",
+        notes="Framework exposes market data fetches; fundamentals/news are capability metadata for future adapter expansion and ingest reports api_key_required when token is missing.",
     ),
     SourceCapability(
         source="quandl",
@@ -199,7 +199,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         implemented_datasets=["tick", "kline", "trade"],
         metadata_only_datasets=["news", "corporate_actions"],
         implementation_status="api_key",
-        notes="Market data is implemented through the registry adapter; richer datasets remain roadmap items.",
+        notes="Market data is implemented through the registry adapter; richer datasets remain roadmap items and ingest reports api_key_required when token is missing.",
     ),
     SourceCapability(
         source="frankfurter_fx",
@@ -230,6 +230,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
             "kline": {
                 "synthetic_ohlcv": True,
                 "source_granularity": "close-based market_chart buckets",
+                "note": "Synthetic OHLCV is derived from close/volume market_chart buckets and is not raw exchange candle data.",
             }
         },
     ),
@@ -339,7 +340,11 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         implemented_datasets=["macro", "fundamentals"],
         metadata_only_datasets=["news"],
         implementation_status="partial",
-        notes="Protocol catalog is cached in-process to avoid repeated list fetches.",
+        notes="Protocol catalog is cached in-process to avoid repeated list fetches; macro tracks TVL time-series and fundamentals track protocol-level snapshot fields.",
+        extra_metadata={
+            "macro": {"focus": "chain TVL time series"},
+            "fundamentals": {"focus": "protocol TVL and market-cap metadata"},
+        },
     ),
     SourceCapability(
         source="hacker_news",

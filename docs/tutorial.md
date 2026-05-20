@@ -19,6 +19,9 @@ Deterministic ve internet gerektirmeyen akış:
 python scripts/tutorial_mode.py --list
 python scripts/tutorial_mode.py --all --offline
 python scripts/tutorial_mode.py --step 4 --offline
+python scripts/tutorial_mode.py --all --offline --pretty
+python scripts/tutorial_mode.py --all --offline --markdown
+python scripts/tutorial_mode.py --all --offline --write-doc
 ```
 
 Adımlar:
@@ -56,7 +59,18 @@ hub.available_datasets("binance_futures", implemented_only=True)
 hub.asset_status("world_bank", "macro")
 hub.supports("binance_futures", "funding", require_live=True)
 hub.source_summary("coingecko")
+hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False)
+hub.explain_source("coingecko")
+hub.explain_dataset("funding")
+hub.dataset_sources_matrix(["kline", "news", "macro", "fundamentals"])
+hub.asset_sources_matrix(["crypto_spot", "equity", "macro"])
 ```
+
+CLI output modes:
+- Default: JSON (backward compatible, machine-friendly).
+- `--pretty`: human-friendly terminal walkthrough.
+- `--markdown`: markdown walkthrough on stdout.
+- `--write-doc`: generate `artifacts/tutorial/tutorial_walkthrough.md`.
 
 ## ETL → Strategy/Backtest → Risk/Execution/Portfolio
 

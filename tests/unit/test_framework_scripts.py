@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.framework_status import build_status_report, render_markdown
+from scripts.framework_status import (
+    PLAN_PATH,
+    build_status_report,
+    render_markdown,
+    render_next_actions_markdown,
+)
 from scripts.tutorial_mode import build_tutorial_results
 
 
@@ -15,10 +22,36 @@ class FrameworkScriptsTest(unittest.TestCase):
         self.assertIn("components", report)
         self.assertIn("coverage_summary", report)
         self.assertIn("next_actions", report)
+        self.assertIn("priority_actions", report)
+        self.assertIn("framework_score", report)
         self.assertIn("live_sources_count", report["coverage_summary"])
         markdown = render_markdown(report)
         self.assertIn("# Framework Status", markdown)
         self.assertIn("## Coverage Summary", markdown)
+        plan = render_next_actions_markdown(report)
+        self.assertIn("# Next Actions", plan)
+        self.assertIn("## P0 - Validation / Artifacts", plan)
+
+    def test_framework_status_cli_options(self) -> None:
+        script = str(Path("scripts/framework_status.py"))
+        next_actions = subprocess.run(
+            [sys.executable, script, "--next-actions-only"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(next_actions.returncode, 0)
+        self.assertIn("[P0]", next_actions.stdout)
+        score = subprocess.run([sys.executable, script, "--score"], capture_output=True, text=True, check=False)
+        self.assertEqual(score.returncode, 0)
+        self.assertIn("framework_score:", score.stdout)
+        write_plan = subprocess.run([sys.executable, script, "--write-plan"], capture_output=True, text=True, check=False)
+        self.assertEqual(write_plan.returncode, 0)
+        self.assertTrue(PLAN_PATH.exists())
+        as_json = subprocess.run([sys.executable, script, "--json"], capture_output=True, text=True, check=False)
+        self.assertEqual(as_json.returncode, 0)
+        payload = json.loads(as_json.stdout)
+        self.assertIn("priority_actions", payload)
 
     def test_tutorial_mode_offline_runs_all_steps(self) -> None:
         steps = build_tutorial_results(offline=True)
@@ -31,6 +64,33 @@ class FrameworkScriptsTest(unittest.TestCase):
         self.assertEqual(report["source"], "offline_fallback")
         self.assertIn("portfolio", report)
         self.assertIn("ledger", report)
+
+    def test_tutorial_mode_output_variants(self) -> None:
+        script = str(Path("scripts/tutorial_mode.py"))
+        pretty = subprocess.run(
+            [sys.executable, script, "--all", "--offline", "--pretty"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(pretty.returncode, 0)
+        self.assertIn("Step 1", pretty.stdout)
+        markdown = subprocess.run(
+            [sys.executable, script, "--all", "--offline", "--markdown"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(markdown.returncode, 0)
+        self.assertIn("# Tutorial Walkthrough", markdown.stdout)
+        write_doc = subprocess.run(
+            [sys.executable, script, "--all", "--offline", "--write-doc"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(write_doc.returncode, 0)
+        self.assertTrue(Path("artifacts/tutorial/tutorial_walkthrough.md").exists())
 
 
 if __name__ == "__main__":

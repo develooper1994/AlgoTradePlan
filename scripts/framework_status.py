@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -14,12 +15,20 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.algotradeplan.data import DataHub
 
 DOC_PATH = REPO_ROOT / "docs" / "framework_status.md"
+PLAN_PATH = REPO_ROOT / "docs" / "next_actions.md"
 REQUIRED_NOTEBOOKS = [
     "00_framework_tutorial.ipynb",
     "01_real_data_smoke.ipynb",
     "02_strategy_backtest_portfolio.ipynb",
     "03_multi_source_asset_coverage.ipynb",
 ]
+ARTIFACT_PATHS = {
+    "framework_status_doc": DOC_PATH,
+    "next_actions_doc": PLAN_PATH,
+    "coverage_doc": REPO_ROOT / "docs" / "data_source_coverage.md",
+    "tutorial_walkthrough": REPO_ROOT / "artifacts" / "tutorial" / "tutorial_walkthrough.md",
+    "real_data_smoke_report": REPO_ROOT / "artifacts" / "real_data_smoke_report.json",
+}
 EXPECTED_TESTS = [
     REPO_ROOT / "tests" / "unit" / "test_data_api.py",
     REPO_ROOT / "tests" / "unit" / "test_framework_scripts.py",
@@ -41,7 +50,56 @@ def _redact_sensitive_fields(value: object) -> object:
     return value
 
 
-def build_status_report() -> dict[str, object]:
+def _artifact_state(path: Path, *, stale_after_days: int = 7) -> dict[str, Any]:
+    if not path.exists():
+        return {"path": str(path.relative_to(REPO_ROOT)), "status": "missing"}
+    age_days = (datetime.now(UTC) - datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)).days
+    return {
+        "path": str(path.relative_to(REPO_ROOT)),
+        "status": "stale" if age_days > stale_after_days else "fresh",
+        "age_days": age_days,
+    }
+
+
+def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
+    metadata_candidates = [item["source"] for item in report["top_metadata_only_adapter_candidates"][:5]]
+    p0 = [
+        "Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).",
+        "Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).",
+        "Run offline tutorial walkthrough (`python scripts/tutorial_mode.py --all --offline --write-doc`).",
+    ]
+    if any(item["status"] != "fresh" for item in report["artifact_state"]):
+        p0.append("Refresh stale or missing artifacts listed in the artifact state section.")
+    p0.append("Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).")
+    p1 = [
+        "Add and document best_sources_for query recipes in tutorial and quickstart docs.",
+        "Expose source and dataset explanation snippets in user-facing docs/notebooks.",
+        "Keep capability and coverage indices synchronized with generated docs.",
+    ]
+    p2 = [
+        "Improve CoinGecko synthetic OHLCV transparency and dataset notes.",
+        "Improve DefiLlama TVL/protocol metadata clarity for macro/fundamentals.",
+        f"Reduce metadata-only adapters in priority order: {', '.join(metadata_candidates) if metadata_candidates else 'none'}.",
+    ]
+    p3 = [
+        "Expand data-quality checks and monitor quality issues over time.",
+        "Harden backtest/risk/portfolio integration scenarios.",
+        "Refine storage/provenance artifact layout and retention policy.",
+    ]
+    return {"P0": p0, "P1": p1, "P2": p2, "P3": p3}
+
+
+def _compute_score(report: dict[str, Any]) -> int:
+    score = 40
+    score += min(35, len(report["completed_components"]) * 4)
+    score += min(10, report["coverage_summary"]["live_sources_count"])
+    score += min(5, report["coverage_summary"]["fallback_sources_count"])
+    score -= min(20, report["coverage_summary"]["metadata_only_sources_count"] * 2)
+    score -= min(10, len([item for item in report["artifact_state"] if item["status"] in {"missing", "stale"}]) * 2)
+    return max(0, min(100, score))
+
+
+def build_status_report() -> dict[str, Any]:
     hub = DataHub()
     coverage_rows = hub.coverage_table()
     summaries = [hub.source_summary(source) for source in hub.sources()]
@@ -54,10 +112,36 @@ def build_status_report() -> dict[str, object]:
         allow_partial=True,
         store=False,
     )
+    metadata_candidates = []
+    for summary in summaries:
+        metadata_count = len(summary["metadata_only_datasets"])
+        if metadata_count == 0 and summary["implementation_status"] != "metadata_only":
+            continue
+        metadata_candidates.append(
+            {
+                "source": summary["source"],
+                "metadata_only_dataset_count": metadata_count,
+                "implementation_status": summary["implementation_status"],
+            }
+        )
+    metadata_candidates.sort(
+        key=lambda item: (-int(item["metadata_only_dataset_count"]), str(item["source"]))
+    )
 
     components = {
         "DataHub": {
-            "done": all(hasattr(hub, name) for name in ("dataset_status", "sources_for", "compare_sources", "source_summary")),
+            "done": all(
+                hasattr(hub, name)
+                for name in (
+                    "dataset_status",
+                    "sources_for",
+                    "compare_sources",
+                    "source_summary",
+                    "best_sources_for",
+                    "explain_source",
+                    "explain_dataset",
+                )
+            ),
             "detail": "Capability query API and ETL facade are available.",
         },
         "adapters": {
@@ -97,60 +181,71 @@ def build_status_report() -> dict[str, object]:
             "detail": "Tutorial guide present." if (REPO_ROOT / "docs" / "tutorial.md").exists() else "Tutorial guide missing.",
         },
     }
-
-    next_actions: list[str] = []
-    if not (REPO_ROOT / "docs" / "data_source_coverage.md").exists():
-        next_actions.append("Generate coverage documentation with `python scripts/generate_data_coverage_doc.py`.")
-    if not (REPO_ROOT / "docs" / "tutorial.md").exists():
-        next_actions.append("Create or refresh `docs/tutorial.md` for the offline and notebook tutorial flow.")
-    if missing_notebooks:
-        next_actions.append(f"Create or update missing notebooks: {', '.join(missing_notebooks)}.")
-    metadata_heavy = [
-        summary["source"]
-        for summary in summaries
-        if summary["metadata_only_datasets"] or summary["implementation_status"] == "metadata_only"
-    ]
-    if metadata_heavy:
-        next_actions.append(
-            "Reduce metadata-only coverage by extending adapters for: " + ", ".join(metadata_heavy[:5]) + "."
-        )
+    artifact_state = [_artifact_state(path) for path in ARTIFACT_PATHS.values()]
     missing_tests = [str(path.relative_to(REPO_ROOT)) for path in EXPECTED_TESTS if not path.exists()]
-    if missing_tests:
-        next_actions.append("Add or restore targeted tests: " + ", ".join(missing_tests) + ".")
-    if not (REPO_ROOT / "artifacts" / "real_data_smoke_report.json").exists():
-        next_actions.append("Run `python scripts/e2e_real_data_smoke.py --interactive --allow-partial` to refresh the E2E smoke artifact.")
-    if not next_actions:
-        next_actions.append("Run full validation (`make lint && make test && make smoke && make runbook_check`) and then extend the next metadata-only adapter.")
 
     risks = [
         "API-key and plan-scoped providers can report broader theoretical coverage than current implemented datasets.",
         "Real-data examples remain sensitive to upstream API availability and throttling.",
     ]
 
-    return {
+    report: dict[str, Any] = {
         "generated_at": datetime.now(UTC).isoformat(),
         "components": components,
-        "completed": [name for name, item in components.items() if item["done"]],
-        "pending": [name for name, item in components.items() if not item["done"]],
-        "next_actions": next_actions,
+        "completed_components": [name for name, item in components.items() if item["done"]],
+        "pending_components": [name for name, item in components.items() if not item["done"]],
         "risks": risks,
         "coverage_summary": {
             "source_count": len(coverage_rows),
             "live_sources_count": status_counter.get("live", 0),
             "api_key_sources_count": status_counter.get("api_key", 0) + status_counter.get("api_key_or_plan", 0),
-            "metadata_only_sources_count": len(metadata_heavy),
+            "metadata_only_sources_count": len(metadata_candidates),
             "fallback_sources_count": status_counter.get("fallback", 0),
             "unsupported_dataset_requests_behavior": unsupported_probe.source_issues,
         },
+        "top_metadata_only_adapter_candidates": metadata_candidates[:10],
+        "artifact_state": artifact_state,
+        "missing_expected_tests": missing_tests,
+        "validation_commands": [
+            "make lint",
+            "make test",
+            "make smoke",
+            "make runbook_check",
+            "python scripts/framework_status.py --write-doc --write-plan",
+            "python scripts/generate_data_coverage_doc.py",
+            "python scripts/tutorial_mode.py --all --offline --write-doc",
+            "python scripts/e2e_real_data_smoke.py --interactive --allow-partial",
+        ],
     }
+    report["priority_actions"] = _build_priority_actions(report)
+    report["next_actions"] = [f"[{priority}] {item}" for priority in ("P0", "P1", "P2", "P3") for item in report["priority_actions"][priority]]
+    report["framework_score"] = _compute_score(report)
+    return report
 
 
-def render_markdown(report: dict[str, object]) -> str:
+def render_next_actions_markdown(report: dict[str, Any]) -> str:
+    priorities = report["priority_actions"]
+    return (
+        "# Next Actions\n\n"
+        "## P0 - Validation / Artifacts\n"
+        + "\n".join(f"- {item}" for item in priorities["P0"])
+        + "\n\n## P1 - Capability UX\n"
+        + "\n".join(f"- {item}" for item in priorities["P1"])
+        + "\n\n## P2 - Reduce metadata-only adapters\n"
+        + "\n".join(f"- {item}" for item in priorities["P2"])
+        + "\n\n## P3 - Production hardening\n"
+        + "\n".join(f"- {item}" for item in priorities["P3"])
+        + "\n"
+    )
+
+
+def render_markdown(report: dict[str, Any]) -> str:
     components = report["components"]
     lines = [
         "# Framework Status",
         "",
         f"Generated: {report['generated_at']}",
+        f"framework_score: {report['framework_score']}/100",
         "",
         "## Module Status",
     ]
@@ -160,18 +255,52 @@ def render_markdown(report: dict[str, object]) -> str:
     lines.extend(
         [
             "",
-            "## Next Actions",
-            *[f"- {item}" for item in report["next_actions"]],
+            "## Completed Components",
+            *[f"- {item}" for item in report["completed_components"]],
+            "",
+            "## Pending Components",
+            *([f"- {item}" for item in report["pending_components"]] or ["- _none_"]),
+            "",
+            "## Priority Next Actions",
+            "### P0",
+            *[f"- {item}" for item in report["priority_actions"]["P0"]],
+            "### P1",
+            *[f"- {item}" for item in report["priority_actions"]["P1"]],
+            "### P2",
+            *[f"- {item}" for item in report["priority_actions"]["P2"]],
+            "### P3",
+            *[f"- {item}" for item in report["priority_actions"]["P3"]],
+            "",
+            "## Top Metadata-only Adapter Candidates",
+            *[
+                f"- {item['source']} (metadata_only_datasets={item['metadata_only_dataset_count']}, status={item['implementation_status']})"
+                for item in report["top_metadata_only_adapter_candidates"]
+            ],
+            "",
+            "## Artifact State",
+            *[
+                f"- {item['path']}: {item['status']}"
+                + (f" ({item['age_days']}d old)" if "age_days" in item else "")
+                for item in report["artifact_state"]
+            ],
+        ]
+    )
+    lines.extend(
+        [
             "",
             "## Risks / Technical Debt",
             *[f"- {item}" for item in report["risks"]],
             "",
             "## Coverage Summary",
+            f"- source count: {report['coverage_summary']['source_count']}",
             f"- live sources count: {report['coverage_summary']['live_sources_count']}",
             f"- api_key sources count: {report['coverage_summary']['api_key_sources_count']}",
             f"- metadata_only sources count: {report['coverage_summary']['metadata_only_sources_count']}",
             f"- fallback sources count: {report['coverage_summary']['fallback_sources_count']}",
             f"- unsupported dataset requests behavior: {json.dumps(report['coverage_summary']['unsupported_dataset_requests_behavior'])}",
+            "",
+            "## Validation Commands",
+            *[f"- `{item}`" for item in report["validation_commands"]],
         ]
     )
     return "\n".join(lines) + "\n"
@@ -179,13 +308,33 @@ def render_markdown(report: dict[str, object]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--next-actions-only", action="store_true")
+    parser.add_argument("--score", action="store_true")
+    parser.add_argument("--write-plan", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--write-doc", action="store_true")
     args = parser.parse_args()
 
     report = build_status_report()
+    if args.write_plan:
+        PLAN_PATH.write_text(render_next_actions_markdown(report), encoding="utf-8")
     if args.write_doc:
         DOC_PATH.write_text(render_markdown(report), encoding="utf-8")
+    if args.score:
+        print(f"framework_score: {report['framework_score']}/100")
+        if not any((args.next_actions_only, args.json)):
+            return
+    if args.next_actions_only:
+        priorities = report["priority_actions"]
+        numbered = [
+            item
+            for priority in ("P0", "P1", "P2", "P3")
+            for item in [f"[{priority}] {entry}" for entry in priorities[priority]]
+        ]
+        for index, item in enumerate(numbered, start=1):
+            print(f"{index}. {item}")
+        if not args.json:
+            return
     if args.json:
         print(json.dumps(_redact_sensitive_fields(report), indent=2))
         return

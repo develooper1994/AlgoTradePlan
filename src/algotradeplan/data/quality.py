@@ -27,6 +27,7 @@ class CanonicalDataQualityPlugin:
 
         seen_keys: set[str] = set()
         grouped_timestamps: dict[tuple[str, str], list[int]] = defaultdict(list)
+        grouped_timestamp_seen: dict[tuple[str, str], set[int]] = defaultdict(set)
 
         for index, record in enumerate(records):
             if not record.key or not record.observed_at or not record.source or not record.asset_type:
@@ -40,11 +41,29 @@ class CanonicalDataQualityPlugin:
             timestamp_ms = int(record.payload.get("timestamp_ms") or 0)
             if timestamp_ms:
                 grouped_timestamps[(dataset, join_key)].append(timestamp_ms)
+                if timestamp_ms in grouped_timestamp_seen[(dataset, join_key)]:
+                    issues.append(f"Duplicate timestamp for dataset={dataset} join_key={join_key}: {timestamp_ms}")
+                grouped_timestamp_seen[(dataset, join_key)].add(timestamp_ms)
 
             if dataset == "kline":
                 for field in ("open", "high", "low", "close"):
                     if record.payload.get(field) is None:
                         issues.append(f"OHLCV record missing {field}: {record.key}")
+                open_price = record.payload.get("open", 0.0)
+                high_price = record.payload.get("high", 0.0)
+                low_price = record.payload.get("low", 0.0)
+                close_price = record.payload.get("close", 0.0)
+                try:
+                    open_value = float(open_price)
+                    high_value = float(high_price)
+                    low_value = float(low_price)
+                    close_value = float(close_price)
+                    if high_value < max(open_value, close_value):
+                        issues.append(f"Inconsistent OHLC high in {record.key}")
+                    if low_value > min(open_value, close_value):
+                        issues.append(f"Inconsistent OHLC low in {record.key}")
+                except (TypeError, ValueError):
+                    issues.append(f"Non-numeric OHLC values in {record.key}")
                 for field in ("open", "high", "low", "close", "volume"):
                     value = record.payload.get(field, 0.0)
                     try:

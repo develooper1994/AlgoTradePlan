@@ -20,6 +20,7 @@ from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import EmaCrossAtrS
 from src.algotradeplan.portfolio.manager import PortfolioManager
 
 ARTIFACT_ROOT = REPO_ROOT / "artifacts" / "tutorial"
+WALKTHROUGH_DOC_PATH = ARTIFACT_ROOT / "tutorial_walkthrough.md"
 PRINTABLE_DATASETS = ["tick", "kline", "trade", "orderbook", "funding", "macro", "fundamentals", "news"]
 FALLBACK_CANDLE = {"high": 101.0, "low": 99.0, "close": 100.0}
 FALLBACK_CANDLE_COUNT = 25
@@ -158,12 +159,74 @@ def _print_steps(steps: list[dict[str, Any]]) -> None:
     print(json.dumps(_redact_sensitive_fields(steps), indent=2, default=str))
 
 
+def _render_pretty(steps: list[dict[str, Any]]) -> str:
+    lines: list[str] = []
+    for step in steps:
+        lines.append(f"=== Step {step['step']}: {step['title']} ===")
+        output = _redact_sensitive_fields(step["output"])
+        if isinstance(output, dict):
+            for key, value in output.items():
+                lines.append(f"- {key}: {value}")
+        else:
+            lines.append(str(output))
+        lines.append("")
+    return "\n".join(lines).strip() + "\n"
+
+
+def _render_markdown(steps: list[dict[str, Any]]) -> str:
+    step_map = {step["step"]: step for step in steps}
+    selected_source = step_map[1]["output"]["source"]
+    selected_symbol = step_map[3]["output"]["selected_symbol"]
+    capability = step_map[2]["output"]
+    coverage = step_map[4]["output"]
+    quality_block = step_map[5]["output"]
+    strategy = step_map[6]["output"]["signal"]
+    backtest = step_map[7]["output"]
+    risk_decision = step_map[8]["output"]
+    execution_fill = step_map[9]["output"]
+    portfolio = step_map[10]["output"]
+    report_path = step_map[11]["output"]["report_path"]
+    return (
+        "# Tutorial Walkthrough\n\n"
+        f"- selected source: `{selected_source}`\n"
+        f"- selected symbol: `{selected_symbol}`\n\n"
+        "## Coverage / Capability Queries\n\n"
+        f"- dataset_status: `{capability['dataset_status']}`\n"
+        f"- sources_for_kline: `{capability['sources_for_kline']}`\n"
+        f"- source_summary: `{capability['source_summary']}`\n\n"
+        "## Ingest Dataset Coverage\n\n"
+        f"- requested_datasets: `{coverage['requested_datasets']}`\n"
+        f"- dataset_coverage: `{coverage['dataset_coverage']}`\n\n"
+        "## Quality / Provenance Summary\n\n"
+        f"- quality: `{quality_block['quality']}`\n"
+        f"- provenance: `{quality_block['provenance']}`\n"
+        f"- source_issues: `{quality_block['source_issues']}`\n\n"
+        "## Strategy Signal\n\n"
+        f"`{strategy}`\n\n"
+        "## Backtest Metrics\n\n"
+        f"`{backtest}`\n\n"
+        "## Risk Decision\n\n"
+        f"`{risk_decision}`\n\n"
+        "## Execution Fill\n\n"
+        f"`{execution_fill}`\n\n"
+        "## Portfolio Snapshot\n\n"
+        f"`{portfolio['portfolio']}`\n\n"
+        "## Ledger Preview\n\n"
+        f"`{portfolio['ledger'][:5]}`\n\n"
+        "## Report Path\n\n"
+        f"- `{report_path}`\n"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--step", type=int)
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument("--pretty", action="store_true")
+    parser.add_argument("--markdown", action="store_true")
+    parser.add_argument("--write-doc", action="store_true")
     parser.add_argument("--source")
     parser.add_argument("--symbol")
     parser.add_argument("--allow-partial", action="store_true")
@@ -184,7 +247,23 @@ def main() -> None:
         matched = [step for step in steps if step["step"] == args.step]
         if not matched:
             raise SystemExit(f"Unknown tutorial step: {args.step}")
+        if args.pretty:
+            print(_render_pretty(matched), end="")
+            return
+        if args.markdown:
+            print(_render_markdown(matched), end="")
+            return
         _print_steps(matched)
+        return
+    markdown_output = _render_markdown(steps)
+    if args.write_doc:
+        WALKTHROUGH_DOC_PATH.parent.mkdir(parents=True, exist_ok=True)
+        WALKTHROUGH_DOC_PATH.write_text(markdown_output, encoding="utf-8")
+    if args.pretty:
+        print(_render_pretty(steps), end="")
+        return
+    if args.markdown:
+        print(markdown_output, end="")
         return
     _print_steps(steps)
 

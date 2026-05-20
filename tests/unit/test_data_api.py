@@ -5,7 +5,9 @@ import unittest
 from pathlib import Path
 
 from src.algotradeplan.data import DataHub, ETL
+from src.algotradeplan.data.quality import CanonicalDataQualityPlugin
 from src.algotradeplan.data.normalize import normalize_dataset
+from src.algotradeplan.plugins.data.contracts import DataRecord
 from scripts.generate_data_coverage_doc import generate as generate_data_coverage_doc
 
 
@@ -14,7 +16,7 @@ def _klines(length: int = 10) -> list[list[object]]:
         [
             1_700_000_000_000 + (index * 60_000),
             "100",
-            "101",
+            str(101 + index),
             "99",
             str(100 + index),
             "10",
@@ -99,7 +101,28 @@ class DataHubApiTest(unittest.TestCase):
         self.assertEqual(comparison[2]["news"], "unsupported")
         summary = hub.source_summary("coingecko")
         self.assertTrue(summary["extra_metadata"]["kline"]["synthetic_ohlcv"])
+        self.assertIn("note", summary["extra_metadata"]["kline"])
         self.assertEqual(summary["dataset_statuses"]["news"], "metadata_only")
+        best = hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False, limit=5)
+        self.assertGreater(len(best), 0)
+        self.assertEqual(best[0]["requires_api_key"], "no")
+        source_explain = hub.explain_source("coingecko")
+        self.assertEqual(source_explain["source"], "coingecko")
+        self.assertIn("dataset_rankings", source_explain)
+        dataset_explain = hub.explain_dataset("funding")
+        self.assertEqual(dataset_explain["dataset"], "funding")
+        self.assertIn("best_sources_no_api_key", dataset_explain)
+
+    def test_dataset_and_asset_sources_matrix(self) -> None:
+        hub = DataHub(json_getter=_fake_getter)
+        dataset_matrix = hub.dataset_sources_matrix(["kline", "news"])
+        self.assertGreater(len(dataset_matrix), 0)
+        self.assertIn("kline", dataset_matrix[0])
+        self.assertIn("news", dataset_matrix[0])
+        asset_matrix = hub.asset_sources_matrix(["crypto_spot", "macro"])
+        self.assertGreater(len(asset_matrix), 0)
+        self.assertIn("crypto_spot", asset_matrix[0])
+        self.assertIn("macro", asset_matrix[0])
 
     def test_unsupported_dataset_reports_issue_without_fetch(self) -> None:
         def raising_getter(url: str, params: dict[str, object]):  # pragma: no cover - should never run
@@ -115,6 +138,21 @@ class DataHubApiTest(unittest.TestCase):
         )
         self.assertEqual(result.dataset_coverage["orderbook"], 0)
         self.assertIn("unsupported_dataset:orderbook", {issue["reason"] for issue in result.source_issues})
+
+    def test_api_key_required_dataset_reports_issue_without_fetch(self) -> None:
+        def raising_getter(url: str, params: dict[str, object]):  # pragma: no cover - should never run
+            raise AssertionError(f"unexpected fetch: {url} {params}")
+
+        hub = DataHub(json_getter=raising_getter)
+        result = hub.ingest(
+            source="alpha_vantage",
+            symbol="IBM",
+            datasets=["kline"],
+            allow_partial=True,
+            store=False,
+        )
+        self.assertEqual(result.dataset_coverage["kline"], 0)
+        self.assertIn("api_key_required:ALPHAVANTAGE_API_KEY", {issue["reason"] for issue in result.source_issues})
 
     def test_ingest_normalizes_quality_storage_and_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -223,12 +261,44 @@ class DataHubApiTest(unittest.TestCase):
             content = generate_data_coverage_doc(path)
             self.assertIn("Data Source Coverage", content)
             self.assertIn("## Dataset → Sources index", content)
+            self.assertIn("## Asset class → Sources index", content)
+            self.assertIn("## Best sources examples", content)
             self.assertIn("## Live fetch sources", content)
             self.assertIn("## API-key required sources", content)
             self.assertIn("## Metadata-only sources", content)
             self.assertIn("## Fallback sources", content)
             self.assertTrue(path.exists())
             self.assertGreater(path.stat().st_size, 100)
+
+    def test_quality_checks_ohlc_duplicate_and_negative_values(self) -> None:
+        quality = CanonicalDataQualityPlugin()
+        records = [
+            DataRecord(
+                key="k1",
+                observed_at="2024-01-01T00:00:00+00:00",
+                domain="market",
+                source="test",
+                asset_type="crypto_spot",
+                payload={"timestamp_ms": 1_700_000_000_000, "open": 100, "high": 90, "low": 101, "close": 98, "volume": -1},
+                metadata={"dataset": "kline", "join_key": "BTCUSDT"},
+            ),
+            DataRecord(
+                key="k2",
+                observed_at="2024-01-01T00:01:00+00:00",
+                domain="market",
+                source="test",
+                asset_type="crypto_spot",
+                payload={"timestamp_ms": 1_700_000_000_000, "open": 99, "high": 100, "low": 98, "close": 99, "volume": 1},
+                metadata={"dataset": "kline", "join_key": "BTCUSDT"},
+            ),
+        ]
+        report = quality.validate(records)
+        self.assertFalse(report.passed)
+        issues_text = " ".join(report.issues)
+        self.assertIn("Inconsistent OHLC high", issues_text)
+        self.assertIn("Inconsistent OHLC low", issues_text)
+        self.assertIn("Negative volume", issues_text)
+        self.assertIn("Duplicate timestamp", issues_text)
 
 
 if __name__ == "__main__":

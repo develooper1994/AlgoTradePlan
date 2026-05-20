@@ -9,6 +9,7 @@ have been removed to keep the repo smaller and easier to scan.
 - `DATA_STRATEGY.md`: ingestion/quality/storage/provenance strategy
 - `tutorial.md`: end-to-end tutorial mode and examples
 - `framework_status.md`: generated project status and next actions
+- `next_actions.md`: generated prioritized implementation plan (P0-P3)
 - `data_source_coverage.md`: source x dataset coverage/status matrix (generated)
 - `extending.md`: plugin contract and extension workflow
 - `runbook_masterlist.md` + `runbooks/`: operational procedures
@@ -30,6 +31,7 @@ have been removed to keep the repo smaller and easier to scan.
 - `production_acceptance.md`
 - `dry_run_simulate_live.md`
 - `doc_automation.md`
+- `../artifacts/tutorial/tutorial_walkthrough.md`: generated markdown tutorial walkthrough
 
 ## Historical / Phase Tracking
 - `PHASE_RECAP.md`

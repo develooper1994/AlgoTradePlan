@@ -16,7 +16,7 @@ def _klines(length: int = 60) -> list[list[object]]:
         [
             1_700_000_000_000 + (index * 60_000),
             "100",
-            "101",
+            str(101 + (index * 0.1)),
             "99",
             str(100 + (index * 0.1)),
             "10",
