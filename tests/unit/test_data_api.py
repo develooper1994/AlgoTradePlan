@@ -14,14 +14,14 @@ from scripts.generate_data_coverage_doc import generate as generate_data_coverag
 def _klines(length: int = 10) -> list[list[object]]:
     return [
         [
-            1_700_000_000_000 + (index * 60_000),
+            1_700_000_000_000 + (row_index * 60_000),
             "100",
-            str(101 + index),
+            str(101 + row_index),
             "99",
-            str(100 + index),
+            str(100 + row_index),
             "10",
         ]
-        for index in range(length)
+        for row_index in range(length)
     ]
 
 

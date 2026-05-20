@@ -49,30 +49,28 @@ class CanonicalDataQualityPlugin:
                 for field in ("open", "high", "low", "close"):
                     if record.payload.get(field) is None:
                         issues.append(f"OHLCV record missing {field}: {record.key}")
-                open_price = record.payload.get("open", 0.0)
-                high_price = record.payload.get("high", 0.0)
-                low_price = record.payload.get("low", 0.0)
-                close_price = record.payload.get("close", 0.0)
+                numeric_values: dict[str, float] = {}
+                for field in ("open", "high", "low", "close", "volume"):
+                    try:
+                        numeric_values[field] = float(record.payload.get(field, 0.0))
+                    except (TypeError, ValueError):
+                        issues.append(f"Non-numeric {field} in {record.key}")
                 try:
-                    open_value = float(open_price)
-                    high_value = float(high_price)
-                    low_value = float(low_price)
-                    close_value = float(close_price)
+                    open_value = numeric_values["open"]
+                    high_value = numeric_values["high"]
+                    low_value = numeric_values["low"]
+                    close_value = numeric_values["close"]
                     if high_value < max(open_value, close_value):
                         issues.append(f"Inconsistent OHLC high in {record.key}")
                     if low_value > min(open_value, close_value):
                         issues.append(f"Inconsistent OHLC low in {record.key}")
                     if high_value < low_value:
                         issues.append(f"Inconsistent OHLC range in {record.key}")
-                except (TypeError, ValueError):
+                except KeyError:
                     issues.append(f"Non-numeric OHLC values in {record.key}")
-                for field in ("open", "high", "low", "close", "volume"):
-                    value = record.payload.get(field, 0.0)
-                    try:
-                        if float(value) < 0:
-                            issues.append(f"Negative {field} in {record.key}")
-                    except (TypeError, ValueError):
-                        issues.append(f"Non-numeric {field} in {record.key}")
+                for field, value in numeric_values.items():
+                    if value < 0:
+                        issues.append(f"Negative {field} in {record.key}")
             elif dataset == "trade":
                 for field in ("price", "quantity"):
                     value = record.payload.get(field, 0.0)
