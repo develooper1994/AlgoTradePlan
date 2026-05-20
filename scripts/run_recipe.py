@@ -77,7 +77,8 @@ def _parse_value(value: str) -> Any:
         return ast.literal_eval(text)
     if re.fullmatch(r"-?\d+", text):
         return int(text)
-    if any(marker in text for marker in (".", "e", "E")):
+    float_candidate = re.fullmatch(r"-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?", text)
+    if float_candidate and ("." in text or "e" in text.lower()):
         try:
             return float(text)
         except ValueError:
