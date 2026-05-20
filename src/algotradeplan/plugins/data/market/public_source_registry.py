@@ -51,7 +51,7 @@ def _attach_derived_funding(symbol: str, datasets: dict[str, Any]) -> dict[str, 
     return copied
 
 
-def _requested(requested_datasets: list[str], dataset: str) -> bool:
+def _is_dataset_requested(requested_datasets: list[str], dataset: str) -> bool:
     return not requested_datasets or dataset in requested_datasets
 
 
@@ -360,7 +360,7 @@ def _alpha_vantage_fetch(
         "orderbook": [{"symbol": symbol, "source": "alphavantage"}] if klines else [],
         "funding": [],
     }
-    if _requested(requested_datasets, "tick"):
+    if _is_dataset_requested(requested_datasets, "tick"):
         quote = get_json(
             "https://www.alphavantage.co/query",
             {"function": "GLOBAL_QUOTE", "symbol": symbol, "apikey": api_key},
@@ -374,7 +374,7 @@ def _alpha_vantage_fetch(
                     "timestamp": quote_row.get("07. latest trading day"),
                 }
             ]
-    if _requested(requested_datasets, "fundamentals"):
+    if _is_dataset_requested(requested_datasets, "fundamentals"):
         datasets["fundamentals"] = get_json(
             "https://www.alphavantage.co/query",
             {"function": "OVERVIEW", "symbol": symbol, "apikey": api_key},
@@ -470,13 +470,13 @@ def _polygon_fetch(
         "orderbook": [{"symbol": symbol, "source": "polygon"}] if rows else [],
         "funding": [],
     }
-    if _requested(requested_datasets, "news"):
+    if _is_dataset_requested(requested_datasets, "news"):
         news_payload = get_json(
             "https://api.polygon.io/v2/reference/news",
             {"ticker": symbol, "limit": max(1, min(limit, 10)), "apiKey": api_key},
         )
         datasets["news"] = news_payload.get("results", [])
-    if _requested(requested_datasets, "corporate_actions"):
+    if _is_dataset_requested(requested_datasets, "corporate_actions"):
         actions_payload = get_json(
             "https://api.polygon.io/v3/reference/splits",
             {"ticker": symbol, "limit": max(1, min(limit, 10)), "apiKey": api_key},
@@ -525,12 +525,12 @@ def _finnhub_fetch(
         "orderbook": [{"symbol": symbol, "source": "finnhub"}] if klines else [],
         "funding": [],
     }
-    if _requested(requested_datasets, "news"):
+    if _is_dataset_requested(requested_datasets, "news"):
         datasets["news"] = get_json(
             "https://finnhub.io/api/v1/company-news",
             {"symbol": symbol, "from": "2025-01-01", "to": "2025-01-07", "token": api_key},
         )
-    if _requested(requested_datasets, "fundamentals"):
+    if _is_dataset_requested(requested_datasets, "fundamentals"):
         datasets["fundamentals"] = get_json(
             "https://finnhub.io/api/v1/stock/profile2",
             {"symbol": symbol, "token": api_key},
@@ -574,7 +574,7 @@ def _quandl_fetch(
         "orderbook": [{"symbol": symbol, "source": "quandl"}] if klines else [],
         "funding": [],
     }
-    if _requested(requested_datasets, "macro"):
+    if _is_dataset_requested(requested_datasets, "macro"):
         last_row = data[0] if data else []
         datasets["macro"] = {
             "base": symbol,
@@ -625,12 +625,12 @@ def _iex_fetch(
         "orderbook": [{"symbol": symbol, "source": "iex"}] if klines else [],
         "funding": [],
     }
-    if _requested(requested_datasets, "news"):
+    if _is_dataset_requested(requested_datasets, "news"):
         datasets["news"] = get_json(
             f"https://cloud.iexapis.com/stable/stock/{symbol}/news/last/5",
             {"token": api_key},
         )
-    if _requested(requested_datasets, "corporate_actions"):
+    if _is_dataset_requested(requested_datasets, "corporate_actions"):
         actions = get_json(
             f"https://cloud.iexapis.com/stable/stock/{symbol}/dividends/1y",
             {"token": api_key},

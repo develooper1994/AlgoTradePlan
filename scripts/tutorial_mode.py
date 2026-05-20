@@ -209,6 +209,13 @@ def _render_markdown(steps: list[dict[str, Any]]) -> str:
     execution_fill = step_map[9]["output"]
     portfolio = step_map[10]["output"]
     report_path = step_map[11]["output"]["report_path"]
+    recommendation_preview = {
+        name: [item["source"] for item in values]
+        for name, values in capability["recommendations"].items()
+    }
+    best_equity_sources = [item["source"] for item in capability["best_equity_kline_no_api_key"]]
+    source_summary = capability["source_summary"]
+    funding_summary = capability["explain_funding"]
     return (
         "# Tutorial Walkthrough\n\n"
         f"- selected source: `{selected_source}`\n"
@@ -216,12 +223,12 @@ def _render_markdown(steps: list[dict[str, Any]]) -> str:
         "## Coverage / Capability Queries\n\n"
         f"- dataset_status: `{capability['dataset_status']}`\n"
         f"- sources_for_kline: `{capability['sources_for_kline']}`\n"
-        f"- source_summary: `{capability['source_summary']}`\n\n"
+        f"- source_summary: `{{'source': '{source_summary['source']}', 'implementation_status': '{source_summary['implementation_status']}', 'implemented_datasets': {source_summary['implemented_datasets']}}}`\n\n"
         "## Source Recommendation Examples\n\n"
-        f"- recommendations: `{capability['recommendations']}`\n"
-        f"- best_equity_kline_no_api_key: `{capability['best_equity_kline_no_api_key']}`\n"
-        f"- explain_coingecko: `{capability['explain_coingecko']}`\n"
-        f"- explain_funding: `{capability['explain_funding']}`\n\n"
+        f"- recommendations: `{recommendation_preview}`\n"
+        f"- best_equity_kline_no_api_key: `{best_equity_sources}`\n"
+        f"- explain_coingecko: `{{'source': '{capability['explain_coingecko']['source']}', 'notes': '{capability['explain_coingecko']['notes']}'}}`\n"
+        f"- explain_funding: `{{'dataset': '{funding_summary['dataset']}', 'best_sources_no_api_key': {[item['source'] for item in funding_summary['best_sources_no_api_key']]}}}`\n\n"
         "## Ingest Dataset Coverage\n\n"
         f"- requested_datasets: `{coverage['requested_datasets']}`\n"
         f"- dataset_coverage: `{coverage['dataset_coverage']}`\n\n"

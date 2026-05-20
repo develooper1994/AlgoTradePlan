@@ -73,16 +73,16 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 
 | Use case | Best sources | Alternatives | API key needed | Notes |
 |---|---|---|---|---|
-| crypto_spot_kline | coinbase_spot, kraken_spot | coingecko, yahoo_unofficial | No | live kline support for crypto_spot without API key |
-| crypto_perp_funding | binance_futures, bybit_linear | offline_fallback | No | live funding support for crypto_perpetual without API key |
-| equity_daily_ohlcv | stooq, yahoo_unofficial | alpha_vantage, financial_modeling_prep | No | live kline support for equity without API key; EOD/public-first sources are preferred when available. |
-| equity_intraday_ohlcv | stooq, yahoo_unofficial | alpha_vantage, financial_modeling_prep | No | live kline support for equity without API key |
-| macro_rates | ecb, frankfurter_fx | kraken_spot, world_bank | No | live tick support for forex, macro without API key; Public FX/reference-rate feeds are preferred. |
-| macro_indicators | ecb, frankfurter_fx | world_bank, defillama | No | live macro support for macro, forex without API key |
-| public_news | gdelt, hacker_news | sec_edgar, financial_modeling_prep | No | live news support without API key; No-key news/event feeds are preferred for this use case. |
-| fundamentals | defillama, sec_edgar | alpha_vantage, financial_modeling_prep | No | partial fundamentals support without API key |
-| options | yahoo_unofficial | financial_modeling_prep, polygon_io | No | partial kline support for options without API key; Coverage is often plan-dependent for richer options endpoints. |
-| offline_demo | offline_fallback, binance_futures | bybit_linear | No | fallback kline support for crypto_perpetual without API key; offline_fallback should only be used for tutorial/smoke/demo flows. |
+| crypto_spot_kline | coinbase_spot, kraken_spot | coingecko, yahoo_unofficial | No | live kline support for crypto_spot without provider credentials |
+| crypto_perp_funding | binance_futures, bybit_linear | offline_fallback | No | live funding support for crypto_perpetual without provider credentials |
+| equity_daily_ohlcv | stooq, yahoo_unofficial | alpha_vantage, financial_modeling_prep | No | live kline support for equity without provider credentials; EOD/public-first sources are preferred when available. |
+| equity_intraday_ohlcv | stooq, yahoo_unofficial | alpha_vantage, financial_modeling_prep | No | live kline support for equity without provider credentials |
+| macro_rates | ecb, frankfurter_fx | kraken_spot, world_bank | No | live tick support for forex, macro without provider credentials; Public FX/reference-rate feeds are preferred. |
+| macro_indicators | ecb, frankfurter_fx | world_bank, defillama | No | live macro support for macro, forex without provider credentials |
+| public_news | gdelt, hacker_news | sec_edgar, financial_modeling_prep | No | live news support without provider credentials; No-key news/event feeds are preferred for this use case. |
+| fundamentals | defillama, sec_edgar | alpha_vantage, financial_modeling_prep | No | partial fundamentals support without provider credentials |
+| options | yahoo_unofficial | financial_modeling_prep, polygon_io | No | partial kline support for options without provider credentials; Coverage is often plan-dependent for richer options endpoints. |
+| offline_demo | offline_fallback, binance_futures | bybit_linear | No | fallback kline support for crypto_perpetual without provider credentials; offline_fallback should only be used for tutorial/smoke/demo flows. |
 
 ## Live fetch sources
 

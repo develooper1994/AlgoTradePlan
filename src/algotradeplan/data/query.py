@@ -7,7 +7,7 @@ from typing import Any
 from src.algotradeplan.data.capabilities import SourceCapability, canonical_dataset_name
 from src.algotradeplan.data.coverage import asset_status, dataset_status
 
-_RECOMMENDATION_STATUS_ORDER = {
+_RECOMMENDATION_STATUS_PRIORITY = {
     "live": 0,
     "partial": 1,
     "fallback": 2,
@@ -127,7 +127,7 @@ def _best_asset_status(capability: SourceCapability, asset_classes: list[str]) -
     available = [status for status in statuses if status != "unsupported"]
     if not available:
         return "unsupported"
-    return min(available, key=lambda item: _RECOMMENDATION_STATUS_ORDER.get(item, 999))
+    return min(available, key=lambda item: _RECOMMENDATION_STATUS_PRIORITY.get(item, 999))
 
 
 def supported_use_cases() -> list[str]:
@@ -354,7 +354,7 @@ def recommend_sources(
     config = _USE_CASE_DEFINITIONS[normalized_use_case]
     datasets = [canonical_dataset_name(item) for item in config.get("datasets", [])]
     asset_classes = [_canonical_asset_class(item) for item in config.get("asset_classes", [])]
-    preferred_sources = [str(item) for item in config.get("preferred_sources", [])]
+    preferred_sources = list(config.get("preferred_sources", []))
     effective_prefer_live = bool(config.get("prefer_live", prefer_live))
     rows: list[tuple[tuple[int, int, int, int, str], dict[str, str]]] = []
 
@@ -378,12 +378,8 @@ def recommend_sources(
             continue
 
         preferred_rank = preferred_sources.index(capability.source) if capability.source in preferred_sources else len(preferred_sources)
-        key_text = "without API key" if not requires_api_key else f"with API key ({capability.api_key_env or 'provider auth'})"
-        asset_text = (
-            f" for {', '.join(asset_classes)}"
-            if asset_classes
-            else ""
-        )
+        key_text = "without provider credentials" if not requires_api_key else "with provider credentials"
+        asset_text = f" for {', '.join(asset_classes)}" if asset_classes else ""
         reason = f"{dataset_value} {selected_dataset} support{asset_text} {key_text}"
         if config.get("notes_hint"):
             reason = f"{reason}; {config['notes_hint']}"
@@ -403,8 +399,8 @@ def recommend_sources(
             (
                 (
                     preferred_rank,
-                    _RECOMMENDATION_STATUS_ORDER.get(dataset_value, 999),
-                    _RECOMMENDATION_STATUS_ORDER.get(asset_value, 999) if asset_value != "n/a" else 0,
+                    _RECOMMENDATION_STATUS_PRIORITY.get(dataset_value, 999),
+                    _RECOMMENDATION_STATUS_PRIORITY.get(asset_value, 999) if asset_value != "n/a" else 0,
                     1 if requires_api_key else 0,
                     capability.source,
                 ),

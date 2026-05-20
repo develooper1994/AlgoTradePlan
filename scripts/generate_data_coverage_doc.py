@@ -89,12 +89,18 @@ def _recommendation_table_rows(hub: DataHub) -> list[dict[str, str]]:
         alternatives = [
             item for item in all_recommendations if item["source"] not in {row["source"] for row in best}
         ][:2]
+        if best:
+            notes = best[0]["reason"]
+        elif all_recommendations:
+            notes = all_recommendations[0]["reason"]
+        else:
+            notes = "No current recommendation."
         row = {
             "Use case": use_case,
             "Best sources": _format_sources(best),
             "Alternatives": _format_sources(alternatives),
             "API key needed": _api_key_label(best or all_recommendations),
-            "Notes": (best[0]["reason"] if best else (all_recommendations[0]["reason"] if all_recommendations else "No current recommendation.")),
+            "Notes": notes,
         }
         rows.append(row)
     return rows
@@ -113,7 +119,7 @@ def generate_source_recommendations(path: Path = SOURCE_RECOMMENDATIONS_DOC_PATH
             continue
         for item in recommendations:
             detail_lines.append(
-                f"- `{item['source']}` — dataset={item['dataset_status']}, asset={item['asset_status']}, api_key={item['requires_api_key']}, reason={item['reason']}"
+                f"- `{item['source']}` — dataset={item['dataset_status']}, asset={item['asset_status']}, credentials={item['requires_api_key']}, reason={item['reason']}"
             )
         detail_lines.append("")
     content = "\n".join(detail_lines).rstrip() + "\n"

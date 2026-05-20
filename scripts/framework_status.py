@@ -296,6 +296,11 @@ def build_status_report() -> dict[str, Any]:
 def render_next_actions_markdown(report: dict[str, Any]) -> str:
     sanitized = _redact_sensitive_fields(report)
     priorities = sanitized["priority_actions"]
+    use_case_gaps = (
+        "\n".join(f"- {item}" for item in sanitized["use_case_coverage_gaps"])
+        if sanitized["use_case_coverage_gaps"]
+        else "\n- _none_"
+    )
     return (
         "# Next Actions\n\n"
         "## P0 - Validation / Artifacts\n"
@@ -307,7 +312,7 @@ def render_next_actions_markdown(report: dict[str, Any]) -> str:
         + "\n\n## P3 - Production hardening\n"
         + "\n".join(f"- {item}" for item in priorities["P3"])
         + "\n\n## P1 - Use-case coverage gaps\n"
-        + ("\n".join(f"- {item}" for item in report["use_case_coverage_gaps"]) or "\n- _none_")
+        + use_case_gaps
         + "\n"
     )
 
