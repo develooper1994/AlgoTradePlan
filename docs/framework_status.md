@@ -1,6 +1,6 @@
 # Framework Status
 
-Generated: 2026-05-20T07:23:02.637345+00:00
+Generated: 2026-05-20T07:25:29.951023+00:00
 
 ## Module Status
 - [x] **DataHub** — Capability query API and ETL facade are available.
@@ -25,6 +25,6 @@ Generated: 2026-05-20T07:23:02.637345+00:00
 ## Coverage Summary
 - live sources count: 10
 - api_key sources count: 8
-- metadata_only sources count: 0
+- metadata_only sources count: 7
 - fallback sources count: 1
 - unsupported dataset requests behavior: [{"source": "offline_fallback", "reason": "unsupported_dataset:news"}]

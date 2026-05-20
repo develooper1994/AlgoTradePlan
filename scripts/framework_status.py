@@ -26,6 +26,21 @@ EXPECTED_TESTS = [
 ]
 
 
+def _sanitize_output(value: object) -> object:
+    if isinstance(value, dict):
+        sanitized: dict[object, object] = {}
+        for key, item in value.items():
+            lowered = str(key).lower()
+            if any(token in lowered for token in ("api_key", "token", "password", "secret")):
+                sanitized[key] = "<redacted>"
+            else:
+                sanitized[key] = _sanitize_output(item)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_output(item) for item in value]
+    return value
+
+
 def build_status_report() -> dict[str, object]:
     hub = DataHub()
     coverage_rows = hub.coverage_table()
@@ -172,7 +187,7 @@ def main() -> None:
     if args.write_doc:
         DOC_PATH.write_text(render_markdown(report), encoding="utf-8")
     if args.json:
-        print(json.dumps(report, indent=2))
+        print(json.dumps(_sanitize_output(report), indent=2))
         return
     print(render_markdown(report))
 

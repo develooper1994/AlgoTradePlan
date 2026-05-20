@@ -20,6 +20,21 @@ from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import EmaCrossAtrS
 from src.algotradeplan.portfolio.manager import PortfolioManager
 
 ARTIFACT_ROOT = REPO_ROOT / "artifacts" / "tutorial"
+def _sanitize_output(value: object) -> object:
+    if isinstance(value, dict):
+        sanitized: dict[object, object] = {}
+        for key, item in value.items():
+            lowered = str(key).lower()
+            if any(token in lowered for token in ("api_key", "token", "password", "secret")):
+                sanitized[key] = "<redacted>"
+            else:
+                sanitized[key] = _sanitize_output(item)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_output(item) for item in value]
+    return value
+
+
 STEP_TITLES = {
     1: "DataHub oluştur ve kaynakları listele",
     2: "Coverage ve capability sorguları",
@@ -135,7 +150,7 @@ def build_tutorial_results(
 
 
 def _print_steps(steps: list[dict[str, Any]]) -> None:
-    print(json.dumps(steps, indent=2, default=str))
+    print(json.dumps(_sanitize_output(steps), indent=2, default=str))
 
 
 def main() -> None:

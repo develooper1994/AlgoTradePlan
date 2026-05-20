@@ -32,7 +32,6 @@ COLUMNS = [
     "Fundamentals",
     "Corporate actions",
     "Requires API key",
-    "API key env",
     "Implementation status",
     "Notes",
 ]
