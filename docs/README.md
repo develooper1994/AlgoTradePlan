@@ -7,6 +7,8 @@ have been removed to keep the repo smaller and easier to scan.
 ## Core / Critical Docs
 - `ARCHITECTURE.md`: module boundaries and design
 - `DATA_STRATEGY.md`: ingestion/quality/storage/provenance strategy
+- `tutorial.md`: end-to-end tutorial mode and examples
+- `framework_status.md`: generated project status and next actions
 - `data_source_coverage.md`: source x dataset coverage/status matrix (generated)
 - `extending.md`: plugin contract and extension workflow
 - `runbook_masterlist.md` + `runbooks/`: operational procedures

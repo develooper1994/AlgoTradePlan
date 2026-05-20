@@ -31,6 +31,19 @@ def _to_int(value: Any, default: int) -> int:
         return default
 
 
+def _to_epoch_ms(value: Any, default: int) -> int:
+    if isinstance(value, (int, float)):
+        return _to_int(value, default)
+    if isinstance(value, str):
+        text = value.strip()
+        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return int(datetime.strptime(text, fmt).replace(tzinfo=UTC).timestamp() * 1000)
+            except ValueError:
+                continue
+    return _to_int(value, default)
+
+
 def _exchange_name(source: str) -> str:
     if source.endswith("_spot"):
         return source.removesuffix("_spot")
@@ -51,7 +64,8 @@ def normalize_ohlcv(source: str, symbol: str, rows: list[Any]) -> list[OHLCVReco
     for row in rows:
         if not isinstance(row, list) or len(row) < 5:
             continue
-        timestamp_ms = _to_int(row[0], _now_ms())
+        timestamp_ms = _to_epoch_ms(row[0], _now_ms())
+        metadata = row[6] if len(row) > 6 and isinstance(row[6], dict) else {}
         normalized.append(
             OHLCVRecord(
                 symbol=symbol,
@@ -63,6 +77,7 @@ def normalize_ohlcv(source: str, symbol: str, rows: list[Any]) -> list[OHLCVReco
                 close=_to_float(row[4]),
                 volume=_to_float(row[5], 0.0) if len(row) > 5 else 0.0,
                 source=source,
+                metadata=metadata,
             )
         )
     return normalized
@@ -79,7 +94,7 @@ def normalize_trade(source: str, symbol: str, rows: list[Any]) -> list[TradeReco
                 symbol=symbol,
                 exchange=exchange,
                 trade_id=str(row.get("id") or row.get("trade_id") or row.get("i") or index),
-                timestamp_ms=_to_int(row.get("time") or row.get("T") or row.get("timestamp"), _now_ms() + index),
+                timestamp_ms=_to_epoch_ms(row.get("time") or row.get("T") or row.get("timestamp"), _now_ms() + index),
                 price=_to_float(row.get("price") or row.get("p") or row.get("lastPrice")),
                 quantity=_to_float(row.get("qty") or row.get("size") or row.get("q") or 0.0),
                 side=str(row.get("side") or row.get("S") or "buy").lower(),
@@ -106,9 +121,9 @@ def normalize_orderbook(source: str, symbol: str, rows: list[Any]) -> list[Order
             OrderbookSnapshot(
                 symbol=symbol,
                 exchange=exchange,
-                timestamp_ms=_to_int(row.get("timestamp") or row.get("ts"), _now_ms() + index),
-                bids=[[ _to_float(level[0]), _to_float(level[1], 0.0)] for level in bids if isinstance(level, list) and len(level) >= 2],
-                asks=[[ _to_float(level[0]), _to_float(level[1], 0.0)] for level in asks if isinstance(level, list) and len(level) >= 2],
+                timestamp_ms=_to_epoch_ms(row.get("timestamp") or row.get("ts"), _now_ms() + index),
+                bids=[[_to_float(level[0]), _to_float(level[1], 0.0)] for level in bids if isinstance(level, list) and len(level) >= 2],
+                asks=[[_to_float(level[0]), _to_float(level[1], 0.0)] for level in asks if isinstance(level, list) and len(level) >= 2],
                 source=source,
             )
         )
@@ -125,9 +140,9 @@ def normalize_funding(source: str, symbol: str, rows: list[Any]) -> list[Funding
             FundingRateRecord(
                 symbol=symbol,
                 exchange=exchange,
-                timestamp_ms=_to_int(row.get("fundingTime") or row.get("timestamp"), _now_ms() + index),
+                timestamp_ms=_to_epoch_ms(row.get("fundingTime") or row.get("timestamp"), _now_ms() + index),
                 rate=_to_float(row.get("fundingRate") or row.get("rate") or 0.0),
-                next_funding_timestamp_ms=_to_int(row.get("nextFundingTime"), 0) or None,
+                next_funding_timestamp_ms=_to_epoch_ms(row.get("nextFundingTime"), 0) or None,
                 derived=bool(row.get("derived", False)),
                 source=source,
                 metadata={"raw": row},
@@ -146,7 +161,7 @@ def normalize_tick(source: str, symbol: str, rows: list[Any]) -> list[dict[str, 
             {
                 "symbol": str(row.get("symbol") or symbol),
                 "exchange": exchange,
-                "timestamp_ms": _to_int(row.get("time") or row.get("timestamp"), _now_ms() + index),
+                "timestamp_ms": _to_epoch_ms(row.get("time") or row.get("timestamp"), _now_ms() + index),
                 "price": _to_float(row.get("price") or row.get("lastPrice") or row.get("c"), 0.0),
                 "source": source,
                 "metadata": {"raw": row},
@@ -165,7 +180,7 @@ def normalize_news(source: str, asset: str, rows: list[Any]) -> list[NewsItem]:
                 title=str(row.get("title") or row.get("headline") or asset),
                 url=str(row.get("url") or row.get("story_url") or ""),
                 source=source,
-                published_at=str(row.get("created_at") or row.get("published_at") or datetime.now(UTC).isoformat()),
+                published_at=str(row.get("created_at") or row.get("publishedDate") or row.get("published_at") or datetime.now(UTC).isoformat()),
                 assets=[asset.upper()] if asset else [],
                 metadata={"raw": row},
             )
@@ -206,6 +221,24 @@ def normalize_fundamentals(source: str, symbol: str, payload: Any) -> list[dict[
     return normalized
 
 
+def normalize_corporate_actions(source: str, symbol: str, payload: Any) -> list[dict[str, Any]]:
+    rows = payload if isinstance(payload, list) else [payload]
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        normalized.append(
+            {
+                "symbol": symbol,
+                "source": source,
+                "timestamp_ms": _now_ms(),
+                "action": row.get("form") or row.get("label") or row.get("type") or "corporate_action",
+                "fields": row,
+            }
+        )
+    return normalized
+
+
 def normalize_dataset(dataset: str, source: str, symbol: str, payload: Any) -> list[Any]:
     if dataset == "tick":
         rows = payload if isinstance(payload, list) else [payload]
@@ -225,6 +258,8 @@ def normalize_dataset(dataset: str, source: str, symbol: str, payload: Any) -> l
         return normalize_macro(source, symbol, payload if isinstance(payload, dict) else {})
     if dataset == "fundamentals":
         return normalize_fundamentals(source, symbol, payload)
+    if dataset == "corporate_actions":
+        return normalize_corporate_actions(source, symbol, payload)
     return []
 
 

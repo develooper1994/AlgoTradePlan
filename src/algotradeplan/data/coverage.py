@@ -7,47 +7,65 @@ from collections.abc import Iterable
 from src.algotradeplan.data.capabilities import SourceCapability
 
 
+DATASET_COLUMNS = {
+    "Ticker": "tick",
+    "OHLCV/Kline": "kline",
+    "Kline/OHLCV": "kline",
+    "Trades": "trade",
+    "Orderbook": "orderbook",
+    "Funding": "funding",
+    "Macro": "macro",
+    "News": "news",
+    "Fundamentals": "fundamentals",
+    "Corporate actions": "corporate_actions",
+}
+
+ASSET_COLUMNS = {
+    "Equity": "equity",
+    "ETF": "etf",
+    "Forex": "forex",
+    "Index": "index",
+    "Futures": "futures",
+    "Options": "options",
+    "Macro asset": "macro",
+}
+
+
 def _bool_status(value: bool) -> str:
     return "live" if value else "unsupported"
 
 
-def _effective_implemented(capability: SourceCapability) -> set[str]:
-    return set(capability.implemented_datasets or capability.datasets)
+def _implemented(capability: SourceCapability) -> set[str]:
+    return {item.lower() for item in capability.implemented_datasets}
 
 
 def _metadata_only(capability: SourceCapability) -> set[str]:
-    return set(capability.metadata_only_datasets)
+    return {item.lower() for item in capability.metadata_only_datasets}
 
 
-def _dataset_status(capability: SourceCapability, dataset: str) -> str:
-    if dataset not in capability.datasets:
+def dataset_status(capability: SourceCapability, dataset: str) -> str:
+    dataset = dataset.lower()
+    if dataset not in {item.lower() for item in capability.datasets}:
         return "unsupported"
     if dataset in _metadata_only(capability):
         return "metadata_only"
-    if dataset in _effective_implemented(capability):
-        if capability.implementation_status in {"api_key", "api_key_or_plan"}:
+    if dataset in _implemented(capability):
+        if capability.implementation_status in {"api_key", "api_key_or_plan", "partial", "fallback"}:
             return capability.implementation_status
-        if capability.implementation_status == "fallback":
-            return "fallback"
-        if capability.implementation_status == "partial":
-            return "partial"
         return "live"
+    if capability.implementation_status == "metadata_only":
+        return "metadata_only"
     if capability.requires_api_key:
-        return "api_key"
+        return capability.implementation_status if capability.implementation_status in {"api_key", "api_key_or_plan"} else "api_key"
     return "partial"
 
 
-def _asset_status(capability: SourceCapability, asset_type: str) -> str:
-    if asset_type not in capability.asset_classes:
+def asset_status(capability: SourceCapability, asset_type: str) -> str:
+    asset_type = asset_type.lower()
+    if asset_type not in {item.lower() for item in capability.asset_classes}:
         return "unsupported"
-    if capability.implementation_status == "metadata_only":
-        return "metadata_only"
-    if capability.implementation_status in {"api_key", "api_key_or_plan"}:
+    if capability.implementation_status in {"api_key", "api_key_or_plan", "partial", "fallback", "metadata_only"}:
         return capability.implementation_status
-    if capability.implementation_status == "fallback":
-        return "fallback"
-    if capability.implementation_status == "partial":
-        return "partial"
     return "live"
 
 
@@ -59,22 +77,13 @@ def build_coverage_table(capabilities: Iterable[SourceCapability]) -> list[dict[
                 "Source": capability.source,
                 "Asset classes": ", ".join(capability.asset_classes),
                 "Asset discovery": _bool_status(capability.supports_discovery),
-                "Ticker": _dataset_status(capability, "tick"),
-                "OHLCV/Kline": _dataset_status(capability, "kline"),
-                "Kline/OHLCV": _dataset_status(capability, "kline"),
-                "Trades": _dataset_status(capability, "trade"),
-                "Orderbook": _dataset_status(capability, "orderbook"),
-                "Funding": _dataset_status(capability, "funding"),
-                "Equity": _asset_status(capability, "equity"),
-                "ETF": _asset_status(capability, "etf"),
-                "Forex": _asset_status(capability, "forex"),
-                "Index": _asset_status(capability, "index"),
-                "Futures": _asset_status(capability, "futures"),
-                "Options": _asset_status(capability, "options"),
-                "Macro": _dataset_status(capability, "macro"),
-                "News": _dataset_status(capability, "news"),
-                "Fundamentals": _dataset_status(capability, "fundamentals"),
-                "Corporate actions": _dataset_status(capability, "corporate_actions"),
+                **{column: dataset_status(capability, dataset) for column, dataset in DATASET_COLUMNS.items()},
+                "Equity": asset_status(capability, "equity"),
+                "ETF": asset_status(capability, "etf"),
+                "Forex": asset_status(capability, "forex"),
+                "Index": asset_status(capability, "index"),
+                "Futures": asset_status(capability, "futures"),
+                "Options": asset_status(capability, "options"),
                 "Requires API key": "yes" if capability.requires_api_key else "no",
                 "API key env": capability.api_key_env or "",
                 "Implementation status": capability.implementation_status,

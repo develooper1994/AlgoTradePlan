@@ -20,6 +20,7 @@ jupyter lab
 
 ## 2) Notebooks
 
+- `notebooks/00_framework_tutorial.ipynb` — new-user tutorial for DataHub → ETL → feature → strategy → backtest → risk → execution → portfolio → report.
 - `notebooks/01_real_data_smoke.ipynb` — `DataHub`-first workflow for source listing, coverage table, asset discovery, ingest, quality, and provenance.
 - `notebooks/02_strategy_backtest_portfolio.ipynb` — `ETL` → features → strategy/backtest → signal -> intent -> risk -> execution -> portfolio.
 - `notebooks/03_multi_source_asset_coverage.ipynb` — cross-source coverage comparison, API-key awareness, and unsupported dataset behaviour.

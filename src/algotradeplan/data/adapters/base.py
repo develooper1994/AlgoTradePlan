@@ -18,5 +18,6 @@ class DataSourceAdapter(Protocol):
         *,
         timeframe: str = "1m",
         limit: int = 500,
+        **filters: Any,
     ) -> dict[str, Any]:
         ...

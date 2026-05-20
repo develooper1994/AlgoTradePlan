@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 _DATASET_ALIASES = {
     "ohlcv": "kline",
@@ -12,6 +13,16 @@ _DATASET_ALIASES = {
     "macro_snapshot": "macro",
     "macro_series": "macro",
 }
+
+STATUS_VALUES = (
+    "live",
+    "partial",
+    "api_key",
+    "api_key_or_plan",
+    "metadata_only",
+    "fallback",
+    "unsupported",
+)
 
 
 @dataclass(frozen=True)
@@ -28,8 +39,9 @@ class SourceCapability:
     quality_level: str = "community"
     implemented_datasets: list[str] = field(default_factory=list)
     metadata_only_datasets: list[str] = field(default_factory=list)
-    implementation_status: str = "live_fetch"
+    implementation_status: str = "live"
     notes: str = ""
+    extra_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 CAPABILITIES: tuple[SourceCapability, ...] = (
@@ -42,6 +54,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=True,
         rate_limit_notes="Public futures REST endpoints; respect exchange burst limits.",
         quality_level="production",
+        implemented_datasets=["tick", "kline", "trade", "orderbook", "funding"],
+        implementation_status="live",
     ),
     SourceCapability(
         source="bybit_linear",
@@ -52,6 +66,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=True,
         rate_limit_notes="Public linear market endpoints; funding available.",
         quality_level="production",
+        implemented_datasets=["tick", "kline", "trade", "orderbook", "funding"],
+        implementation_status="live",
     ),
     SourceCapability(
         source="kraken_spot",
@@ -62,6 +78,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Public spot endpoints; funding derived as unsupported.",
         quality_level="production",
+        implemented_datasets=["tick", "kline", "trade", "orderbook"],
+        implementation_status="live",
     ),
     SourceCapability(
         source="coinbase_spot",
@@ -72,18 +90,21 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Public exchange endpoints; no funding feed.",
         quality_level="production",
+        implemented_datasets=["tick", "kline", "trade", "orderbook"],
+        implementation_status="live",
     ),
     SourceCapability(
         source="yahoo_unofficial",
-        asset_classes=["crypto_spot", "equity", "etf", "forex", "index"],
+        asset_classes=["crypto_spot", "equity", "etf", "forex", "index", "options"],
         datasets=["tick", "kline"],
         supports_discovery=True,
         supports_history=True,
         supports_realtime=False,
         rate_limit_notes="Unofficial Yahoo chart/search endpoints.",
         quality_level="best_effort",
+        implemented_datasets=["tick", "kline"],
         implementation_status="partial",
-        notes="Discovery + tick/kline available via unofficial chart/search responses.",
+        notes="Discovery + tick/kline available via unofficial chart/search responses; options coverage remains example-level metadata.",
     ),
     SourceCapability(
         source="alpha_vantage",
@@ -96,7 +117,10 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="ALPHAVANTAGE_API_KEY",
         rate_limit_notes="Free tier is heavily rate limited.",
         quality_level="production",
+        implemented_datasets=["tick", "kline"],
+        metadata_only_datasets=["fundamentals"],
         implementation_status="api_key",
+        notes="Framework fetches tick/kline via the market registry adapter; fundamentals remain capability metadata only.",
     ),
     SourceCapability(
         source="twelve_data",
@@ -109,6 +133,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="TWELVEDATA_API_KEY",
         rate_limit_notes="API-keyed intraday time series provider.",
         quality_level="production",
+        implemented_datasets=["tick", "kline"],
         implementation_status="api_key",
     ),
     SourceCapability(
@@ -122,7 +147,10 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="POLYGON_API_KEY",
         rate_limit_notes="Plan-dependent market coverage.",
         quality_level="production",
+        implemented_datasets=["tick", "kline", "trade"],
+        metadata_only_datasets=["news", "corporate_actions"],
         implementation_status="api_key_or_plan",
+        notes="Core market datasets are fetchable; advanced datasets depend on plan coverage and remain metadata-only in the framework.",
     ),
     SourceCapability(
         source="finnhub",
@@ -135,7 +163,10 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="FINNHUB_API_KEY",
         rate_limit_notes="Token-based provider with broad fundamentals/news coverage.",
         quality_level="production",
+        implemented_datasets=["tick", "kline"],
+        metadata_only_datasets=["news", "fundamentals"],
         implementation_status="api_key",
+        notes="Framework exposes market data fetches; fundamentals/news are capability metadata for future adapter expansion.",
     ),
     SourceCapability(
         source="quandl",
@@ -148,7 +179,10 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="QUANDL_API_KEY",
         rate_limit_notes="Historical and economic data only.",
         quality_level="production",
+        implemented_datasets=["kline"],
+        metadata_only_datasets=["macro", "fundamentals"],
         implementation_status="api_key",
+        notes="Current registry adapter focuses on historical price series.",
     ),
     SourceCapability(
         source="iex_cloud",
@@ -161,7 +195,10 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         api_key_env="IEX_CLOUD_API_KEY",
         rate_limit_notes="Token required; plan-specific endpoints.",
         quality_level="production",
+        implemented_datasets=["tick", "kline", "trade"],
+        metadata_only_datasets=["news", "corporate_actions"],
         implementation_status="api_key",
+        notes="Market data is implemented through the registry adapter; richer datasets remain roadmap items.",
     ),
     SourceCapability(
         source="frankfurter_fx",
@@ -172,6 +209,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Public FX reference rates.",
         quality_level="production",
+        implemented_datasets=["macro", "tick"],
+        implementation_status="live",
     ),
     SourceCapability(
         source="coingecko",
@@ -185,20 +224,26 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         implemented_datasets=["tick", "kline"],
         metadata_only_datasets=["news"],
         implementation_status="partial",
-        notes="Public endpoints work without key; pro key can increase limits.",
+        notes="OHLCV is synthesized from market_chart close/volume buckets; pro tiers can widen endpoint coverage.",
+        extra_metadata={
+            "kline": {
+                "synthetic_ohlcv": True,
+                "source_granularity": "close-based market_chart buckets",
+            }
+        },
     ),
     SourceCapability(
         source="stooq",
         asset_classes=["equity", "etf", "index", "forex"],
         datasets=["kline"],
-        supports_discovery=False,
+        supports_discovery=True,
         supports_history=True,
         supports_realtime=False,
         rate_limit_notes="End-of-day style market coverage.",
         quality_level="best_effort",
         implemented_datasets=["kline"],
-        implementation_status="live_fetch",
-        notes="Symbols are typically user-provided (e.g. aapl.us).",
+        implementation_status="live",
+        notes="Symbols/datasets are typically user-provided (e.g. aapl.us); timestamps are normalized from source dates to epoch-ms.",
     ),
     SourceCapability(
         source="fred",
@@ -207,11 +252,13 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_discovery=True,
         supports_history=True,
         supports_realtime=False,
-        rate_limit_notes="Macro time series provider.",
+        requires_api_key=True,
+        api_key_env="FRED_API_KEY",
+        rate_limit_notes="Macro time series provider; light best-effort public usage can work but API key is recommended.",
         quality_level="production",
-        implementation_status="metadata_only",
-        metadata_only_datasets=["macro"],
-        notes="Capability present; DataHub adapter not implemented yet.",
+        implemented_datasets=["macro"],
+        implementation_status="api_key",
+        notes="Provides macro series such as FEDFUNDS, CPIAUCSL, UNRATE, DGS10, and GDP.",
     ),
     SourceCapability(
         source="gdelt",
@@ -223,7 +270,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         rate_limit_notes="News/event metadata feed.",
         quality_level="best_effort",
         implemented_datasets=["news"],
-        implementation_status="live_fetch",
+        implementation_status="live",
     ),
     SourceCapability(
         source="financial_modeling_prep",
@@ -232,11 +279,13 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_discovery=True,
         supports_history=True,
         supports_realtime=False,
-        rate_limit_notes="Optional provider for fundamentals and corporate actions.",
+        requires_api_key=True,
+        api_key_env="FMP_API_KEY",
+        rate_limit_notes="Optional provider for fundamentals, news, and corporate actions.",
         quality_level="best_effort",
-        implementation_status="metadata_only",
-        metadata_only_datasets=["tick", "kline", "fundamentals", "corporate_actions", "news"],
-        notes="Capability metadata only; DataHub adapter not implemented yet.",
+        implemented_datasets=["tick", "kline", "fundamentals", "corporate_actions", "news"],
+        implementation_status="api_key",
+        notes="Minimal adapter is available through the DataHub registry; endpoint scope still depends on API plan.",
     ),
     SourceCapability(
         source="sec_edgar",
@@ -245,11 +294,11 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_discovery=True,
         supports_history=True,
         supports_realtime=False,
-        rate_limit_notes="Filing metadata and disclosures.",
+        rate_limit_notes="Public filing metadata and disclosures.",
         quality_level="production",
-        implementation_status="metadata_only",
-        metadata_only_datasets=["fundamentals", "news", "corporate_actions"],
-        notes="Capability metadata only; DataHub adapter not implemented yet.",
+        implemented_datasets=["fundamentals", "news", "corporate_actions"],
+        implementation_status="partial",
+        notes="Uses public SEC ticker, submissions, and company facts endpoints for filing/news-style metadata.",
     ),
     SourceCapability(
         source="world_bank",
@@ -261,7 +310,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         rate_limit_notes="Global macro indicators and development statistics.",
         quality_level="production",
         implemented_datasets=["macro"],
-        implementation_status="live_fetch",
+        implementation_status="live",
+        notes="Pass `country=` to target WLD, TUR, USA, or other ISO/World Bank country codes.",
     ),
     SourceCapability(
         source="ecb",
@@ -273,7 +323,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         rate_limit_notes="ECB market and macro reference series.",
         quality_level="production",
         implemented_datasets=["tick", "macro"],
-        implementation_status="live_fetch",
+        implementation_status="live",
+        notes="FX fetches are parameterized by quote symbol such as USD, GBP, or JPY.",
     ),
     SourceCapability(
         source="defillama",
@@ -287,6 +338,7 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         implemented_datasets=["macro", "fundamentals"],
         metadata_only_datasets=["news"],
         implementation_status="partial",
+        notes="Protocol catalog is cached in-process to avoid repeated list fetches.",
     ),
     SourceCapability(
         source="hacker_news",
@@ -297,6 +349,8 @@ CAPABILITIES: tuple[SourceCapability, ...] = (
         supports_realtime=False,
         rate_limit_notes="Public story search used as a smoke-news source.",
         quality_level="best_effort",
+        implemented_datasets=["news"],
+        implementation_status="live",
     ),
     SourceCapability(
         source="offline_fallback",

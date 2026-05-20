@@ -17,6 +17,15 @@ from src.algotradeplan.data.coverage import build_coverage_table
 from src.algotradeplan.data.normalize import normalize_dataset, to_data_records
 from src.algotradeplan.data.provenance import ManifestProvenanceTracker
 from src.algotradeplan.data.quality import CanonicalDataQualityPlugin
+from src.algotradeplan.data.query import (
+    asset_status_for_source,
+    available_datasets,
+    compare_sources,
+    dataset_status_for_source,
+    source_summary,
+    sources_for,
+    supports,
+)
 from src.algotradeplan.data.storage import InMemoryStorage, LocalArtifactStorage
 from src.algotradeplan.plugins.data.contracts import DataRequest, DataRecord, ProvenanceRecord, QualityReport, StorageReceipt
 
@@ -41,6 +50,10 @@ _ALLOWED_API_PREFIXES = (
     "https://api.worldbank.org/",
     "https://data-api.ecb.europa.eu/",
     "https://api.llama.fi/",
+    "https://api.stlouisfed.org/",
+    "https://data.sec.gov/",
+    "https://www.sec.gov/",
+    "https://financialmodelingprep.com/",
 )
 
 
@@ -99,6 +112,43 @@ class DataHub:
         capabilities = [self._capabilities[source] for source in self.sources()]
         return build_coverage_table(capabilities)
 
+    def dataset_status(self, source: str, dataset: str) -> str:
+        return dataset_status_for_source(self._capabilities, source, dataset)
+
+    def asset_status(self, source: str, asset_class: str) -> str:
+        return asset_status_for_source(self._capabilities, source, asset_class)
+
+    def supports(self, source: str, dataset: str, *, require_live: bool = False) -> bool:
+        return supports(self._capabilities, source, dataset, require_live=require_live)
+
+    def sources_for(
+        self,
+        dataset: str | None = None,
+        asset_class: str | None = None,
+        require_live: bool = False,
+    ) -> list[str]:
+        return sources_for(
+            self._capabilities,
+            dataset=dataset,
+            asset_class=asset_class,
+            require_live=require_live,
+        )
+
+    def available_datasets(self, source: str, *, implemented_only: bool = False) -> list[str]:
+        return available_datasets(self._capabilities, source, implemented_only=implemented_only)
+
+    def requires_api_key(self, source: str) -> bool:
+        return self._capabilities[source].requires_api_key
+
+    def api_key_env(self, source: str) -> str | None:
+        return self._capabilities[source].api_key_env
+
+    def compare_sources(self, sources: list[str], datasets: list[str] | None = None) -> list[dict[str, str]]:
+        return compare_sources(self._capabilities, sources, datasets)
+
+    def source_summary(self, source: str) -> dict[str, Any]:
+        return source_summary(self._capabilities, source)
+
     def discover_assets(self, source: str, limit: int = 10, **filters: Any) -> list[str]:
         capability = self._capabilities[source]
         if not capability.supports_discovery:
@@ -119,10 +169,19 @@ class DataHub:
         limit: int = 500,
         allow_partial: bool = False,
         store: bool = True,
+        **fetch_options: Any,
     ) -> IngestResult:
         capability = self._capabilities[source]
         requested = [canonical_dataset_name(dataset) for dataset in datasets]
-        raw_datasets = self._fetch_raw(source=source, symbol=symbol, datasets=requested, timeframe=timeframe, limit=limit)
+        fetchable = [dataset for dataset in requested if self.dataset_status(source, dataset) not in {"unsupported", "metadata_only"}]
+        raw_datasets = self._fetch_raw(
+            source=source,
+            symbol=symbol,
+            datasets=fetchable,
+            timeframe=timeframe,
+            limit=limit,
+            **fetch_options,
+        ) if fetchable else {}
         normalized: dict[str, list[dict[str, Any]]] = {}
         records: list[DataRecord] = []
         issues: list[dict[str, str]] = []
@@ -130,8 +189,13 @@ class DataHub:
         asset_type = capability.asset_classes[0] if capability.asset_classes else "unknown"
 
         for dataset in requested:
-            if dataset not in capability.datasets:
+            status = self.dataset_status(source, dataset)
+            if status == "unsupported":
                 issues.append({"source": source, "reason": f"unsupported_dataset:{dataset}"})
+                dataset_coverage[dataset] = 0
+                continue
+            if status == "metadata_only":
+                issues.append({"source": source, "reason": f"metadata_only_dataset:{dataset}"})
                 dataset_coverage[dataset] = 0
                 continue
             raw_payload = raw_datasets.get(dataset)
@@ -147,14 +211,12 @@ class DataHub:
             records.extend(to_data_records(dataset, source, asset_type, items))
 
         quality_report = self._quality.validate(records)
-        if quality_report.issues and not allow_partial:
-            empty_errors = [issue for issue in issues if issue["reason"].startswith(("unsupported_dataset", "missing_dataset"))]
-            if empty_errors and not records:
-                quality_report = QualityReport(
-                    passed=False,
-                    checks=quality_report.checks,
-                    issues=quality_report.issues + [issue["reason"] for issue in empty_errors],
-                )
+        if issues and not allow_partial and not records:
+            quality_report = QualityReport(
+                passed=False,
+                checks=quality_report.checks,
+                issues=quality_report.issues + [issue["reason"] for issue in issues],
+            )
 
         storage_receipts: list[StorageReceipt] = []
         provenance: ProvenanceRecord | None = None
@@ -162,7 +224,12 @@ class DataHub:
             request = DataRequest(
                 dataset=",".join(requested),
                 symbol=symbol,
-                parameters={"timeframe": timeframe, "limit": limit, "allow_partial": allow_partial},
+                parameters={
+                    "timeframe": timeframe,
+                    "limit": limit,
+                    "allow_partial": allow_partial,
+                    **fetch_options,
+                },
             )
             storage_receipts = self._storage.write(records)
             provenance = self._provenance.capture(
@@ -195,6 +262,7 @@ class DataHub:
         timeframe: str = "1m",
         limit: int = 500,
         allow_partial: bool = False,
+        **fetch_options: Any,
     ):
         return self.ingest(
             source=source,
@@ -204,6 +272,7 @@ class DataHub:
             limit=limit,
             allow_partial=allow_partial,
             store=False,
+            **fetch_options,
         ).to_feature_frame(dataset=canonical_dataset_name(dataset))
 
     def _fetch_raw(
@@ -214,6 +283,7 @@ class DataHub:
         datasets: list[str],
         timeframe: str = "1m",
         limit: int = 500,
+        **fetch_options: Any,
     ) -> dict[str, Any]:
         try:
             return self._adapter_registry.fetch_raw(
@@ -222,6 +292,7 @@ class DataHub:
                 datasets=datasets,
                 timeframe=timeframe,
                 limit=limit,
+                **fetch_options,
             )
         except KeyError:
             return {}

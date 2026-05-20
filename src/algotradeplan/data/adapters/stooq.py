@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any, Callable
 
 JsonGetter = Callable[[str, dict[str, Any]], Any]
@@ -24,7 +25,7 @@ class StooqAdapter:
         symbol: str,
         datasets: list[str],  # noqa: ARG002
         *,
-        timeframe: str = "1m",  # noqa: ARG002
+        timeframe: str = "1d",  # noqa: ARG002
         limit: int = 500,
     ) -> dict[str, Any]:
         payload = self._json_getter(
@@ -33,11 +34,8 @@ class StooqAdapter:
         )
         rows = payload.get("data", payload if isinstance(payload, list) else [])
         klines: list[list[Any]] = []
-        for index, row in enumerate(rows[:limit], start=1):
-            date_value = str(row.get("date", "")).replace("-", "")
-            timestamp = 1_700_000_000_000 + (index * 86_400_000)
-            if date_value.isdigit() and len(date_value) == 8:
-                timestamp = int(date_value) * 1000
+        for row in rows[:limit]:
+            timestamp = _parse_stooq_timestamp(row)
             klines.append(
                 [
                     timestamp,
@@ -49,3 +47,21 @@ class StooqAdapter:
                 ]
             )
         return {"kline": klines}
+
+
+def _parse_stooq_timestamp(row: dict[str, Any]) -> int:
+    date_text = str(row.get("date", "")).strip()
+    time_text = str(row.get("time", "")).strip()
+    for fmt, value in (
+        ("%Y-%m-%d %H:%M:%S", f"{date_text} {time_text}".strip()),
+        ("%Y-%m-%d %H:%M", f"{date_text} {time_text}".strip()),
+        ("%Y-%m-%d", date_text),
+        ("%Y%m%d", date_text.replace("-", "")),
+    ):
+        if not value:
+            continue
+        try:
+            return int(datetime.strptime(value, fmt).replace(tzinfo=UTC).timestamp() * 1000)
+        except ValueError:
+            continue
+    return 0

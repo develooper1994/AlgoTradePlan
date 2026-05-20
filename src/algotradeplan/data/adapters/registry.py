@@ -28,5 +28,6 @@ class DataAdapterRegistry:
         *,
         timeframe: str = "1m",
         limit: int = 500,
+        **filters: Any,
     ) -> dict[str, Any]:
-        return self.get(source).fetch_raw(symbol, datasets, timeframe=timeframe, limit=limit)
+        return self.get(source).fetch_raw(symbol, datasets, timeframe=timeframe, limit=limit, **filters)
