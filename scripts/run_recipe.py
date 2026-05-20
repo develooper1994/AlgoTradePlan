@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import pathlib
 import sys
 from pathlib import Path
@@ -31,7 +32,13 @@ def _parse_value(value: str) -> Any:
     if text.lower() == "null":
         return None
     if text.startswith("[") and text.endswith("]"):
-        return ast.literal_eval(text)
+        try:
+            return ast.literal_eval(text)
+        except (ValueError, SyntaxError):
+            inner = text[1:-1].strip()
+            if not inner:
+                return []
+            return [_parse_value(item) for item in inner.split(",")]
     if text.startswith("{") and text.endswith("}"):
         return ast.literal_eval(text)
     numeric_candidate = text.replace(".", "", 1).replace("-", "", 1)
@@ -50,7 +57,10 @@ def _load_recipe(path: Path) -> dict[str, Any]:
     raw = path.read_text(encoding="utf-8")
     if suffix == ".json":
         return json.loads(raw)
+    yaml_disabled = os.getenv("ALGOTRADEPLAN_DISABLE_YAML", "").lower() in {"1", "true", "yes"}
     try:
+        if yaml_disabled:
+            raise ImportError("YAML parser disabled by ALGOTRADEPLAN_DISABLE_YAML")
         import yaml  # type: ignore
 
         loaded = yaml.safe_load(raw)

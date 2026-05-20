@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -85,6 +86,27 @@ class ResearchLabTest(unittest.TestCase):
             capture_output=True,
             text=True,
             check=False,
+        )
+        self.assertEqual(run.returncode, 0)
+        payload = json.loads(run.stdout)
+        self.assertIn("preflight", payload)
+        self.assertIn("data_health", payload)
+
+    def test_recipe_runner_dry_run_without_yaml_parser(self) -> None:
+        env = dict(os.environ)
+        env["ALGOTRADEPLAN_DISABLE_YAML"] = "1"
+        run = subprocess.run(
+            [
+                sys.executable,
+                "scripts/run_recipe.py",
+                "recipes/crypto_momentum.yaml",
+                "--dry-run",
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
         )
         self.assertEqual(run.returncode, 0)
         payload = json.loads(run.stdout)
