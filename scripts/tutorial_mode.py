@@ -32,7 +32,14 @@ def _redact_sensitive_fields(value: object) -> object:
         for key, item in value.items():
             lowered = str(key).lower()
             if any(token in lowered for token in ("api_key", "token", "password", "secret")):
-                sanitized[key] = "<redacted>"
+                if isinstance(item, str):
+                    text = item.strip()
+                    if text in {"yes", "no", "", "api_key", "api_key_or_plan"} or text.endswith("_API_KEY"):
+                        sanitized[key] = text
+                    else:
+                        sanitized[key] = "<redacted>"
+                else:
+                    sanitized[key] = _redact_sensitive_fields(item)
             else:
                 sanitized[key] = _redact_sensitive_fields(item)
         return sanitized
@@ -160,10 +167,11 @@ def _print_steps(steps: list[dict[str, Any]]) -> None:
 
 
 def _render_pretty(steps: list[dict[str, Any]]) -> str:
+    sanitized_steps = _redact_sensitive_fields(steps)
     lines: list[str] = []
-    for step in steps:
+    for step in sanitized_steps:
         lines.append(f"=== Step {step['step']}: {step['title']} ===")
-        output = _redact_sensitive_fields(step["output"])
+        output = step["output"]
         if isinstance(output, dict):
             for key, value in output.items():
                 lines.append(f"- {key}: {value}")
@@ -174,7 +182,8 @@ def _render_pretty(steps: list[dict[str, Any]]) -> str:
 
 
 def _render_markdown(steps: list[dict[str, Any]]) -> str:
-    step_map = {step["step"]: step for step in steps}
+    sanitized_steps = _redact_sensitive_fields(steps)
+    step_map = {step["step"]: step for step in sanitized_steps}
     selected_source = step_map[1]["output"]["source"]
     selected_symbol = step_map[3]["output"]["selected_symbol"]
     capability = step_map[2]["output"]

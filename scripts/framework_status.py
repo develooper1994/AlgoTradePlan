@@ -41,7 +41,14 @@ def _redact_sensitive_fields(value: object) -> object:
         for key, item in value.items():
             lowered = str(key).lower()
             if any(token in lowered for token in ("api_key", "token", "password", "secret")):
-                sanitized[key] = "<redacted>"
+                if isinstance(item, str):
+                    text = item.strip()
+                    if text in {"yes", "no", "", "api_key", "api_key_or_plan"} or text.endswith("_API_KEY"):
+                        sanitized[key] = text
+                    else:
+                        sanitized[key] = "<redacted>"
+                else:
+                    sanitized[key] = _redact_sensitive_fields(item)
             else:
                 sanitized[key] = _redact_sensitive_fields(item)
         return sanitized
@@ -224,7 +231,8 @@ def build_status_report() -> dict[str, Any]:
 
 
 def render_next_actions_markdown(report: dict[str, Any]) -> str:
-    priorities = report["priority_actions"]
+    sanitized = _redact_sensitive_fields(report)
+    priorities = sanitized["priority_actions"]
     return (
         "# Next Actions\n\n"
         "## P0 - Validation / Artifacts\n"
@@ -240,12 +248,13 @@ def render_next_actions_markdown(report: dict[str, Any]) -> str:
 
 
 def render_markdown(report: dict[str, Any]) -> str:
-    components = report["components"]
+    sanitized = _redact_sensitive_fields(report)
+    components = sanitized["components"]
     lines = [
         "# Framework Status",
         "",
-        f"Generated: {report['generated_at']}",
-        f"framework_score: {report['framework_score']}/100",
+        f"Generated: {sanitized['generated_at']}",
+        f"framework_score: {sanitized['framework_score']}/100",
         "",
         "## Module Status",
     ]
@@ -256,32 +265,32 @@ def render_markdown(report: dict[str, Any]) -> str:
         [
             "",
             "## Completed Components",
-            *[f"- {item}" for item in report["completed_components"]],
+            *[f"- {item}" for item in sanitized["completed_components"]],
             "",
             "## Pending Components",
-            *([f"- {item}" for item in report["pending_components"]] or ["- _none_"]),
+            *([f"- {item}" for item in sanitized["pending_components"]] or ["- _none_"]),
             "",
             "## Priority Next Actions",
             "### P0",
-            *[f"- {item}" for item in report["priority_actions"]["P0"]],
+            *[f"- {item}" for item in sanitized["priority_actions"]["P0"]],
             "### P1",
-            *[f"- {item}" for item in report["priority_actions"]["P1"]],
+            *[f"- {item}" for item in sanitized["priority_actions"]["P1"]],
             "### P2",
-            *[f"- {item}" for item in report["priority_actions"]["P2"]],
+            *[f"- {item}" for item in sanitized["priority_actions"]["P2"]],
             "### P3",
-            *[f"- {item}" for item in report["priority_actions"]["P3"]],
+            *[f"- {item}" for item in sanitized["priority_actions"]["P3"]],
             "",
             "## Top Metadata-only Adapter Candidates",
             *[
                 f"- {item['source']} (metadata_only_datasets={item['metadata_only_dataset_count']}, status={item['implementation_status']})"
-                for item in report["top_metadata_only_adapter_candidates"]
+                for item in sanitized["top_metadata_only_adapter_candidates"]
             ],
             "",
             "## Artifact State",
             *[
                 f"- {item['path']}: {item['status']}"
                 + (f" ({item['age_days']}d old)" if "age_days" in item else "")
-                for item in report["artifact_state"]
+                for item in sanitized["artifact_state"]
             ],
         ]
     )
@@ -289,18 +298,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         [
             "",
             "## Risks / Technical Debt",
-            *[f"- {item}" for item in report["risks"]],
+            *[f"- {item}" for item in sanitized["risks"]],
             "",
             "## Coverage Summary",
-            f"- source count: {report['coverage_summary']['source_count']}",
-            f"- live sources count: {report['coverage_summary']['live_sources_count']}",
-            f"- api_key sources count: {report['coverage_summary']['api_key_sources_count']}",
-            f"- metadata_only sources count: {report['coverage_summary']['metadata_only_sources_count']}",
-            f"- fallback sources count: {report['coverage_summary']['fallback_sources_count']}",
-            f"- unsupported dataset requests behavior: {json.dumps(report['coverage_summary']['unsupported_dataset_requests_behavior'])}",
+            f"- source count: {sanitized['coverage_summary']['source_count']}",
+            f"- live sources count: {sanitized['coverage_summary']['live_sources_count']}",
+            f"- api_key sources count: {sanitized['coverage_summary']['api_key_sources_count']}",
+            f"- metadata_only sources count: {sanitized['coverage_summary']['metadata_only_sources_count']}",
+            f"- fallback sources count: {sanitized['coverage_summary']['fallback_sources_count']}",
+            f"- unsupported dataset requests behavior: {json.dumps(sanitized['coverage_summary']['unsupported_dataset_requests_behavior'])}",
             "",
             "## Validation Commands",
-            *[f"- `{item}`" for item in report["validation_commands"]],
+            *[f"- `{item}`" for item in sanitized["validation_commands"]],
         ]
     )
     return "\n".join(lines) + "\n"
@@ -316,16 +325,17 @@ def main() -> None:
     args = parser.parse_args()
 
     report = build_status_report()
+    sanitized_report = _redact_sensitive_fields(report)
     if args.write_plan:
-        PLAN_PATH.write_text(render_next_actions_markdown(report), encoding="utf-8")
+        PLAN_PATH.write_text(render_next_actions_markdown(sanitized_report), encoding="utf-8")
     if args.write_doc:
-        DOC_PATH.write_text(render_markdown(report), encoding="utf-8")
+        DOC_PATH.write_text(render_markdown(sanitized_report), encoding="utf-8")
     if args.score:
-        print(f"framework_score: {report['framework_score']}/100")
+        print(f"framework_score: {sanitized_report['framework_score']}/100")
         if not any((args.next_actions_only, args.json)):
             return
     if args.next_actions_only:
-        priorities = report["priority_actions"]
+        priorities = sanitized_report["priority_actions"]
         numbered = [
             item
             for priority in ("P0", "P1", "P2", "P3")
@@ -336,9 +346,9 @@ def main() -> None:
         if not args.json:
             return
     if args.json:
-        print(json.dumps(_redact_sensitive_fields(report), indent=2))
+        print(json.dumps(sanitized_report, indent=2))
         return
-    print(render_markdown(report))
+    print(render_markdown(sanitized_report))
 
 
 if __name__ == "__main__":

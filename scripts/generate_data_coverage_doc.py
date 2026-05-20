@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -36,6 +37,14 @@ COLUMNS = [
     "Notes",
 ]
 DATASETS = ["tick", "kline", "trade", "orderbook", "funding", "macro", "news", "fundamentals", "corporate_actions"]
+
+
+def _redact_sensitive_text(value: str) -> str:
+    return re.sub(
+        r"(?i)(api[_-]?key|token|password|secret)\s*[:=]\s*([^\s,;`]+)",
+        r"\1=<redacted>",
+        value,
+    )
 
 
 def _markdown_table(rows: list[dict[str, str]], columns: list[str]) -> str:
@@ -75,7 +84,7 @@ def generate(path: Path = DOC_PATH) -> str:
         if summary["implementation_status"] == "metadata_only" or summary["metadata_only_datasets"]
     ]
     fallback_sources = [summary["source"] for summary in summaries if summary["implementation_status"] == "fallback"]
-    notes = [summary["notes"] for summary in summaries if summary["notes"]]
+    notes = [_redact_sensitive_text(str(summary["notes"])) for summary in summaries if summary["notes"]]
 
     dataset_rows = []
     for dataset in sorted(dataset_index):
@@ -151,7 +160,7 @@ def generate(path: Path = DOC_PATH) -> str:
         + "\n".join(f"- {note}" for note in sorted(set(notes)))
         + "\n"
     )
-    path.write_text(content, encoding="utf-8")
+    path.write_text(_redact_sensitive_text(content), encoding="utf-8")
     return content
 
 
