@@ -33,8 +33,9 @@ class ExperimentRegistry:
         risk: dict[str, Any],
         portfolio: dict[str, Any],
     ) -> ExperimentRecord:
-        created_at = datetime.now(UTC).isoformat()
-        experiment_id = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{_slug(name)}"
+        now = datetime.now(UTC)
+        created_at = now.isoformat()
+        experiment_id = f"{now.strftime('%Y%m%dT%H%M%SZ')}_{_slug(name)}"
         experiment_root = self.root / experiment_id
         experiment_root.mkdir(parents=True, exist_ok=True)
 

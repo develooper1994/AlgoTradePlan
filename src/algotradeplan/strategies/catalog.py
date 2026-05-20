@@ -63,9 +63,11 @@ _CATALOG: tuple[StrategyCapability, ...] = (
     ),
 )
 
+_CATALOG_MAP: dict[str, StrategyCapability] = {item.strategy_id: item for item in _CATALOG}
+
 
 def _catalog_map() -> dict[str, StrategyCapability]:
-    return {item.strategy_id: item for item in _CATALOG}
+    return _CATALOG_MAP
 
 
 def list_strategies() -> list[str]:

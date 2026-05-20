@@ -83,11 +83,11 @@ python scripts/run_recipe.py recipes/crypto_momentum.yaml
 python scripts/run_recipe.py recipes/funding_carry.yaml --dry-run
 ```
 
-- **Preflight**: source + dataset + strategy kombinasyonu çalıştırılabilir mi?
-- **Data health**: ingest sonrası kalite ve issue sayaçları.
-- **Strategy catalog**: `docs/strategy_catalog.md` ve `src/algotradeplan/strategies/catalog.py`.
-- **Experiment registry**: `artifacts/experiments/<experiment_id>/`.
-- **Recipes**: `recipes/*.yaml` ile tekrar çalıştırılabilir araştırma akışları.
+- **Preflight**: checks whether a source + dataset + strategy combination is runnable.
+- **Data health**: summarizes ingest quality checks and issue counters.
+- **Strategy catalog**: see `docs/strategy_catalog.md` and `src/algotradeplan/strategies/catalog.py`.
+- **Experiment registry**: stores outputs under `artifacts/experiments/<experiment_id>/`.
+- **Recipes**: `recipes/*.yaml` provides repeatable research scenarios.
 
 CLI output modes:
 - Default: JSON (backward compatible, machine-friendly).

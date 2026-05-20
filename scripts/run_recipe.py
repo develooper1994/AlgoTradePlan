@@ -63,9 +63,13 @@ def _load_recipe(path: Path) -> dict[str, Any]:
         if not line.strip() or line.strip().startswith("#"):
             continue
         if line.startswith("  ") and current_map is not None and current_key:
+            if ":" not in line:
+                raise ValueError(f"Invalid recipe line: {line}")
             child_key, child_value = line.strip().split(":", 1)
             current_map[child_key.strip()] = _parse_value(child_value)
             continue
+        if ":" not in line:
+            raise ValueError(f"Invalid recipe line: {line}")
         key, value = line.split(":", 1)
         key = key.strip()
         parsed = _parse_value(value)
