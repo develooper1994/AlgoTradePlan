@@ -38,7 +38,7 @@ def _parse_value(value: str) -> Any:
             inner = text[1:-1].strip()
             if not inner:
                 return []
-            return [_parse_value(item) for item in inner.split(",")]
+            return [_parse_value(item.strip()) for item in inner.split(",")]
     if text.startswith("{") and text.endswith("}"):
         return ast.literal_eval(text)
     numeric_candidate = text.replace(".", "", 1).replace("-", "", 1)
