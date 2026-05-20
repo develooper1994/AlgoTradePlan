@@ -83,7 +83,7 @@ def strategy_summary(strategy_id: str) -> dict[str, object]:
 
 
 def recommend_strategies(*, asset_class: str | None = None, datasets: list[str] | None = None) -> list[dict[str, object]]:
-    asset = asset_class.lower().strip() if asset_class else None
+    asset = asset_class.lower().strip() if isinstance(asset_class, str) and asset_class else None
     requested = {item.lower().strip() for item in (datasets or []) if item}
     rows: list[dict[str, object]] = []
     for capability in _CATALOG:

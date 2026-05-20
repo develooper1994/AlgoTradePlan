@@ -34,12 +34,15 @@ def _parse_value(value: str) -> Any:
         return ast.literal_eval(text)
     if text.startswith("{") and text.endswith("}"):
         return ast.literal_eval(text)
+    numeric_candidate = text.replace(".", "", 1).replace("-", "", 1)
     try:
-        if "." in text:
+        if numeric_candidate.isdigit() and "." in text:
             return float(text)
-        return int(text)
+        if numeric_candidate.isdigit():
+            return int(text)
     except ValueError:
-        return text.strip('"').strip("'")
+        pass
+    return text.strip('"').strip("'")
 
 
 def _load_recipe(path: Path) -> dict[str, Any]:
@@ -64,12 +67,16 @@ def _load_recipe(path: Path) -> dict[str, Any]:
             continue
         if line.startswith("  ") and current_map is not None and current_key:
             if ":" not in line:
-                raise ValueError(f"Invalid recipe line: {line}")
+                raise ValueError(
+                    f"Invalid nested recipe line: {line}. Expected format: '  key: value'"
+                )
             child_key, child_value = line.strip().split(":", 1)
             current_map[child_key.strip()] = _parse_value(child_value)
             continue
         if ":" not in line:
-            raise ValueError(f"Invalid recipe line: {line}")
+            raise ValueError(
+                f"Invalid recipe line: {line}. Expected format: 'key: value'"
+            )
         key, value = line.split(":", 1)
         key = key.strip()
         parsed = _parse_value(value)
