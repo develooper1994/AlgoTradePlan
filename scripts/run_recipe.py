@@ -77,8 +77,11 @@ def _parse_value(value: str) -> Any:
         return ast.literal_eval(text)
     if re.fullmatch(r"-?\d+", text):
         return int(text)
-    if re.fullmatch(r"-?\d+\.\d+", text):
-        return float(text)
+    if any(marker in text for marker in (".", "e", "E")):
+        try:
+            return float(text)
+        except ValueError:
+            pass
     return text.strip('"').strip("'")
 
 
