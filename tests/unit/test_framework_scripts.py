@@ -81,6 +81,9 @@ class FrameworkScriptsTest(unittest.TestCase):
         self.assertEqual(pretty.returncode, 0)
         self.assertIn("Step 1", pretty.stdout)
         self.assertIn("recommendations", pretty.stdout)
+        self.assertIn("best_equity_kline_no_api_key", pretty.stdout)
+        self.assertIn("explain_coingecko", pretty.stdout)
+        self.assertIn("explain_funding", pretty.stdout)
         markdown = subprocess.run(
             [sys.executable, script, "--all", "--offline", "--markdown"],
             capture_output=True,

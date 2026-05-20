@@ -112,6 +112,8 @@ export POLYGON_API_KEY="..."
 export FINNHUB_API_KEY="..."
 export QUANDL_API_KEY="..."
 export IEX_CLOUD_API_KEY="..."
+export FRED_API_KEY="..."
+export FMP_API_KEY="..."
 ```
 
 | Variable | Source |
@@ -122,6 +124,8 @@ export IEX_CLOUD_API_KEY="..."
 | `FINNHUB_API_KEY` | Finnhub |
 | `QUANDL_API_KEY` | Nasdaq Data Link |
 | `IEX_CLOUD_API_KEY` | IEX Cloud |
+| `FRED_API_KEY` | FRED |
+| `FMP_API_KEY` | Financial Modeling Prep |
 
 ## Notebooks
 
