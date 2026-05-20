@@ -23,6 +23,7 @@ All user-facing documentation lives under `docs/`. Generated docs are marked wit
 - **[tutorial.md](tutorial.md)** — end-to-end tutorial mode and examples
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — module boundaries and design
 - **[DATA_STRATEGY.md](DATA_STRATEGY.md)** — ingestion/quality/storage/provenance
+- **[tefas_integration.md](tefas_integration.md)** — optional TEFAS source integration
 - **[strategy_catalog.md](strategy_catalog.md)** — strategy dataset/asset-class compatibility
 - **[extending.md](extending.md)** — plugin contract and extension workflow
 - **[usage_with_notebooks.md](usage_with_notebooks.md)** — notebook workflow guide

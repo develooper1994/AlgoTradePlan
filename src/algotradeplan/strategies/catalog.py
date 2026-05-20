@@ -61,6 +61,17 @@ _CATALOG: tuple[StrategyCapability, ...] = (
         default_timeframe="1d",
         notes="Research skeleton metadata for regime overlays and filters.",
     ),
+    StrategyCapability(
+        strategy_id="fund_momentum",
+        display_name="Fund Momentum (metadata)",
+        required_datasets=["fund_nav"],
+        optional_datasets=["fund_profile", "fund_return", "fund_allocation", "fund_size", "fund_fee"],
+        supported_asset_classes=["mutual_fund", "pension_fund"],
+        min_records=12,
+        supports_short=False,
+        default_timeframe="1d",
+        notes="TEFAS-oriented strategy metadata for preflight/research planning.",
+    ),
 )
 
 _CATALOG_MAP: dict[str, StrategyCapability] = {item.strategy_id: item for item in _CATALOG}

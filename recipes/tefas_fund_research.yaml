@@ -1,0 +1,6 @@
+name: tefas_fund_research
+source: tefas_public
+symbol: AFT
+datasets: [fund_nav, fund_profile, fund_return, fund_allocation]
+strategy: fund_momentum
+allow_partial: true

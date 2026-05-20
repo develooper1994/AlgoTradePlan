@@ -18,6 +18,14 @@ DATASET_COLUMNS = {
     "News": "news",
     "Fundamentals": "fundamentals",
     "Corporate actions": "corporate_actions",
+    "Fund NAV": "fund_nav",
+    "Fund profile": "fund_profile",
+    "Fund return": "fund_return",
+    "Fund allocation": "fund_allocation",
+    "Fund size": "fund_size",
+    "Fund fee": "fund_fee",
+    "Fund announcement": "fund_announcement",
+    "Fund statistics": "fund_statistics",
 }
 
 ASSET_COLUMNS = {
@@ -84,6 +92,8 @@ def build_coverage_table(capabilities: Iterable[SourceCapability]) -> list[dict[
                 "Index": asset_status(capability, "index"),
                 "Futures": asset_status(capability, "futures"),
                 "Options": asset_status(capability, "options"),
+                "Mutual fund": asset_status(capability, "mutual_fund"),
+                "Pension fund": asset_status(capability, "pension_fund"),
                 "Requires API key": "yes" if capability.requires_api_key else "no",
                 "API key env": capability.api_key_env or "",
                 "Implementation status": capability.implementation_status,

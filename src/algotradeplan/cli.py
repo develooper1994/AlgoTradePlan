@@ -196,6 +196,8 @@ def cmd_health(args: argparse.Namespace) -> int:
     ]
     if args.offline:
         cli_args.append("--offline")
+    if args.allow_partial:
+        cli_args.append("--allow-partial")
     if args.json:
         cli_args.append("--json")
     return _run_script(cli_args)
@@ -265,6 +267,22 @@ def cmd_doctor(args: argparse.Namespace) -> int:  # noqa: ARG001
     else:
         ok_items.append("api_keys: none set (public sources work without API keys)")
 
+    tefas_cli_bin = os.environ.get("TEFAS_CLI_BIN", "").strip()
+    tefas_ffi_lib = os.environ.get("TEFAS_FFI_LIB", "").strip()
+    tefas_cli_ok = False
+    tefas_ffi_ok = False
+
+    if tefas_cli_bin:
+        cli_path = Path(tefas_cli_bin)
+        tefas_cli_ok = cli_path.exists() and os.access(cli_path, os.X_OK)
+        if not tefas_cli_ok:
+            issues.append("TEFAS_CLI_BIN is set but not executable")
+    if tefas_ffi_lib:
+        ffi_path = Path(tefas_ffi_lib)
+        tefas_ffi_ok = ffi_path.exists()
+        if not tefas_ffi_ok:
+            issues.append("TEFAS_FFI_LIB is set but file does not exist")
+
     # Recipes
     recipes_dir = REPO_ROOT / "recipes"
     if recipes_dir.exists():
@@ -279,6 +297,20 @@ def cmd_doctor(args: argparse.Namespace) -> int:  # noqa: ARG001
         print(f"  ✓ {item}")
     for item in issues:
         print(f"  ✗ {item}")
+    print()
+    print("TEFAS integration:")
+    if tefas_cli_bin:
+        print(f"  - TEFAS_CLI_BIN: {'ok' if tefas_cli_ok else 'invalid'}")
+    else:
+        print("  - TEFAS_CLI_BIN: missing")
+    if tefas_ffi_lib:
+        print(f"  - TEFAS_FFI_LIB: {'ok' if tefas_ffi_ok else 'invalid'}")
+    else:
+        print("  - TEFAS_FFI_LIB: missing")
+    if tefas_cli_ok or tefas_ffi_ok:
+        print("  - tefas_public fetch: available")
+    else:
+        print("  - tefas_public source available but fetch disabled")
     print()
     if issues:
         print(f"Found {len(issues)} issue(s). See suggestions above.")
@@ -420,6 +452,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_health.add_argument("--symbol", required=True)
     p_health.add_argument("--datasets", nargs="+", required=True)
     p_health.add_argument("--offline", action="store_true")
+    p_health.add_argument("--allow-partial", action="store_true")
     p_health.add_argument("--json", action="store_true")
 
     # recipe

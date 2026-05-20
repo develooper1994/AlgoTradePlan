@@ -16,6 +16,12 @@ Bu doküman DataHub `recommend_sources()` API'sinden üretilir.
 | fundamentals | defillama, sec_edgar | alpha_vantage, financial_modeling_prep | No | partial fundamentals support without provider credentials |
 | options | yahoo_unofficial | financial_modeling_prep, polygon_io | No | partial kline support for options without provider credentials; Coverage is often plan-dependent for richer options endpoints. |
 | offline_demo | offline_fallback, binance_futures | bybit_linear | No | fallback kline support for crypto_perpetual without provider credentials; offline_fallback should only be used for tutorial/smoke/demo flows. |
+| tefas_fund_nav | tefas_public | - | No | partial fund_nav support for mutual_fund, pension_fund without provider credentials |
+| tefas_fund_profile | tefas_public | - | No | partial fund_profile support for mutual_fund, pension_fund without provider credentials |
+| tefas_fund_returns | tefas_public | - | No | partial fund_return support for mutual_fund, pension_fund without provider credentials |
+| tefas_fund_allocation | tefas_public | - | No | partial fund_allocation support for mutual_fund, pension_fund without provider credentials |
+| tefas_fund_screener | tefas_public | - | No | partial fund_profile support for mutual_fund, pension_fund without provider credentials; Optional tefas-cli integration is required for live fetch. |
+| tefas_fund_research | tefas_public | - | No | partial fund_nav support for mutual_fund, pension_fund without provider credentials; Optional tefas-cli integration is required for live fetch. |
 
 ### crypto_spot_kline
 
@@ -90,3 +96,27 @@ Bu doküman DataHub `recommend_sources()` API'sinden üretilir.
 - `offline_fallback` — dataset=fallback, asset=fallback, credentials=no, reason=fallback kline support for crypto_perpetual without provider credentials; offline_fallback should only be used for tutorial/smoke/demo flows.
 - `binance_futures` — dataset=live, asset=live, credentials=no, reason=live kline support for crypto_perpetual without provider credentials; offline_fallback should only be used for tutorial/smoke/demo flows.
 - `bybit_linear` — dataset=live, asset=live, credentials=no, reason=live kline support for crypto_perpetual without provider credentials; offline_fallback should only be used for tutorial/smoke/demo flows.
+
+### tefas_fund_nav
+
+- `tefas_public` — dataset=partial, asset=partial, credentials=no, reason=partial fund_nav support for mutual_fund, pension_fund without provider credentials
+
+### tefas_fund_profile
+
+- `tefas_public` — dataset=partial, asset=partial, credentials=no, reason=partial fund_profile support for mutual_fund, pension_fund without provider credentials
+
+### tefas_fund_returns
+
+- `tefas_public` — dataset=partial, asset=partial, credentials=no, reason=partial fund_return support for mutual_fund, pension_fund without provider credentials
+
+### tefas_fund_allocation
+
+- `tefas_public` — dataset=partial, asset=partial, credentials=no, reason=partial fund_allocation support for mutual_fund, pension_fund without provider credentials
+
+### tefas_fund_screener
+
+- `tefas_public` — dataset=partial, asset=partial, credentials=no, reason=partial fund_profile support for mutual_fund, pension_fund without provider credentials; Optional tefas-cli integration is required for live fetch.
+
+### tefas_fund_research
+
+- `tefas_public` — dataset=partial, asset=partial, credentials=no, reason=partial fund_nav support for mutual_fund, pension_fund without provider credentials; Optional tefas-cli integration is required for live fetch.

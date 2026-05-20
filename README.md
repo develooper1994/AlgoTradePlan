@@ -102,6 +102,7 @@ Key docs:
 - [docs/data_source_coverage.md](docs/data_source_coverage.md) — coverage matrix *(generated)*
 - [docs/source_recommendations.md](docs/source_recommendations.md) — use-case recommendations *(generated)*
 - [docs/framework_status.md](docs/framework_status.md) — project status *(generated)*
+- [docs/tefas_integration.md](docs/tefas_integration.md) — optional TEFAS integration
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — module design
 - [docs/usage_with_notebooks.md](docs/usage_with_notebooks.md) — notebook workflow guide
 
@@ -144,4 +145,3 @@ src/algotradeplan/
 ├── orchestration/  # TradeFlow, real-data autopilot pipeline
 └── observability/  # StructuredLogger, InMemoryMetricsSink
 ```
-
