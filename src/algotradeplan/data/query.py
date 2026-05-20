@@ -174,7 +174,9 @@ def best_sources_for(
     ranked = [item[2] for item in sorted(rows, key=lambda item: (item[0], item[1]))]
     if limit is None:
         return ranked
-    return ranked[: max(0, limit)]
+    if limit < 0:
+        raise ValueError("limit must be non-negative")
+    return ranked[:limit]
 
 
 def explain_source(capabilities: dict[str, SourceCapability], source: str) -> dict[str, Any]:

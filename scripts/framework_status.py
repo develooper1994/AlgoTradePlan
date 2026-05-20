@@ -132,7 +132,7 @@ def build_status_report() -> dict[str, Any]:
             }
         )
     metadata_candidates.sort(
-        key=lambda item: (-int(item["metadata_only_dataset_count"]), str(item["source"]))
+        key=lambda item: (-item["metadata_only_dataset_count"], str(item["source"]))
     )
 
     components = {

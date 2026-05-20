@@ -106,6 +106,8 @@ class DataHubApiTest(unittest.TestCase):
         best = hub.best_sources_for(dataset="kline", asset_class="crypto_spot", allow_api_key=False, limit=5)
         self.assertGreater(len(best), 0)
         self.assertEqual(best[0]["requires_api_key"], "no")
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            hub.best_sources_for(dataset="kline", limit=-1)
         source_explain = hub.explain_source("coingecko")
         self.assertEqual(source_explain["source"], "coingecko")
         self.assertIn("dataset_rankings", source_explain)
@@ -297,6 +299,7 @@ class DataHubApiTest(unittest.TestCase):
         issues_text = " ".join(report.issues)
         self.assertIn("Inconsistent OHLC high", issues_text)
         self.assertIn("Inconsistent OHLC low", issues_text)
+        self.assertIn("Inconsistent OHLC range", issues_text)
         self.assertIn("Negative volume", issues_text)
         self.assertIn("Duplicate timestamp", issues_text)
 

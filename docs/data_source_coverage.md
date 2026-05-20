@@ -73,32 +73,32 @@ Bu doküman `scripts/generate_data_coverage_doc.py` ile üretilir.
 
 ### best crypto spot kline sources
 
-- `coinbase_spot` (dataset=live, asset=live, api_key=<redacted>
-- `kraken_spot` (dataset=live, asset=live, api_key=<redacted>
-- `coingecko` (dataset=partial, asset=partial, api_key=<redacted>
-- `yahoo_unofficial` (dataset=partial, asset=partial, api_key=<redacted>
+- `coinbase_spot` (dataset=live, asset=live, api_key=no)
+- `kraken_spot` (dataset=live, asset=live, api_key=no)
+- `coingecko` (dataset=partial, asset=partial, api_key=no)
+- `yahoo_unofficial` (dataset=partial, asset=partial, api_key=no)
 
 ### best crypto perpetual funding sources
 
-- `binance_futures` (dataset=live, asset=live, api_key=<redacted>
-- `bybit_linear` (dataset=live, asset=live, api_key=<redacted>
-- `offline_fallback` (dataset=fallback, asset=fallback, api_key=<redacted>
+- `binance_futures` (dataset=live, asset=live, api_key=no)
+- `bybit_linear` (dataset=live, asset=live, api_key=no)
+- `offline_fallback` (dataset=fallback, asset=fallback, api_key=no)
 
 ### best macro sources
 
-- `ecb` (dataset=live, asset=live, api_key=<redacted>
-- `frankfurter_fx` (dataset=live, asset=live, api_key=<redacted>
-- `world_bank` (dataset=live, asset=live, api_key=<redacted>
-- `defillama` (dataset=partial, asset=partial, api_key=<redacted>
-- `fred` (dataset=api_key, asset=api_key, api_key=<redacted>
+- `ecb` (dataset=live, asset=live, api_key=no)
+- `frankfurter_fx` (dataset=live, asset=live, api_key=no)
+- `world_bank` (dataset=live, asset=live, api_key=no)
+- `defillama` (dataset=partial, asset=partial, api_key=no)
+- `fred` (dataset=api_key, asset=api_key, api_key=yes)
 
 ### best news sources
 
-- `gdelt` (dataset=live, asset=n/a, api_key=<redacted>
-- `hacker_news` (dataset=live, asset=n/a, api_key=<redacted>
-- `sec_edgar` (dataset=partial, asset=n/a, api_key=<redacted>
-- `financial_modeling_prep` (dataset=api_key, asset=n/a, api_key=<redacted>
-- `coingecko` (dataset=metadata_only, asset=n/a, api_key=<redacted>
+- `gdelt` (dataset=live, asset=n/a, api_key=no)
+- `hacker_news` (dataset=live, asset=n/a, api_key=no)
+- `sec_edgar` (dataset=partial, asset=n/a, api_key=no)
+- `financial_modeling_prep` (dataset=api_key, asset=n/a, api_key=yes)
+- `coingecko` (dataset=metadata_only, asset=n/a, api_key=no)
 
 ## Live fetch sources
 

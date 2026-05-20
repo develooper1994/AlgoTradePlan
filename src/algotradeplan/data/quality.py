@@ -62,6 +62,8 @@ class CanonicalDataQualityPlugin:
                         issues.append(f"Inconsistent OHLC high in {record.key}")
                     if low_value > min(open_value, close_value):
                         issues.append(f"Inconsistent OHLC low in {record.key}")
+                    if high_value < low_value:
+                        issues.append(f"Inconsistent OHLC range in {record.key}")
                 except (TypeError, ValueError):
                     issues.append(f"Non-numeric OHLC values in {record.key}")
                 for field in ("open", "high", "low", "close", "volume"):
