@@ -50,7 +50,7 @@ def _redact_sensitive_fields(value: object) -> object:
 
 STEP_TITLES = {
     1: "DataHub oluştur ve kaynakları listele",
-    2: "Coverage ve capability sorguları",
+    2: "Coverage, capability ve source recommendation sorguları",
     3: "Asset discovery",
     4: "Veri ingest",
     5: "Normalize / quality / provenance",
@@ -137,6 +137,20 @@ def build_tutorial_results(
         "dataset_status": hub.dataset_status(selected_source, preferred[0]),
         "sources_for_kline": hub.sources_for(dataset="kline")[:5],
         "source_summary": hub.source_summary(selected_source),
+        "recommendations": {
+            "crypto_spot_kline": hub.recommend_sources("crypto_spot_kline", allow_api_key=False, limit=3),
+            "crypto_perp_funding": hub.recommend_sources("crypto_perp_funding", allow_api_key=False, limit=3),
+            "macro_indicators": hub.recommend_sources("macro_indicators", allow_api_key=False, limit=3),
+            "public_news": hub.recommend_sources("public_news", allow_api_key=False, limit=3),
+        },
+        "best_equity_kline_no_api_key": hub.best_sources_for(
+            dataset="kline",
+            asset_class="equity",
+            allow_api_key=False,
+            limit=3,
+        ),
+        "explain_coingecko": hub.explain_source("coingecko"),
+        "explain_funding": hub.explain_dataset("funding"),
     }
     steps = [
         {"step": 1, "title": STEP_TITLES[1], "output": {"source": selected_source, "sources": hub.sources()[:10]}},
@@ -195,6 +209,13 @@ def _render_markdown(steps: list[dict[str, Any]]) -> str:
     execution_fill = step_map[9]["output"]
     portfolio = step_map[10]["output"]
     report_path = step_map[11]["output"]["report_path"]
+    recommendation_preview = {
+        name: [item["source"] for item in values]
+        for name, values in capability["recommendations"].items()
+    }
+    best_equity_sources = [item["source"] for item in capability["best_equity_kline_no_api_key"]]
+    source_summary = capability["source_summary"]
+    funding_summary = capability["explain_funding"]
     return (
         "# Tutorial Walkthrough\n\n"
         f"- selected source: `{selected_source}`\n"
@@ -202,7 +223,12 @@ def _render_markdown(steps: list[dict[str, Any]]) -> str:
         "## Coverage / Capability Queries\n\n"
         f"- dataset_status: `{capability['dataset_status']}`\n"
         f"- sources_for_kline: `{capability['sources_for_kline']}`\n"
-        f"- source_summary: `{capability['source_summary']}`\n\n"
+        f"- source_summary: `{{'source': '{source_summary['source']}', 'implementation_status': '{source_summary['implementation_status']}', 'implemented_datasets': {source_summary['implemented_datasets']}}}`\n\n"
+        "## Source Recommendation Examples\n\n"
+        f"- recommendations: `{recommendation_preview}`\n"
+        f"- best_equity_kline_no_api_key: `{best_equity_sources}`\n"
+        f"- explain_coingecko: `{{'source': '{capability['explain_coingecko']['source']}', 'notes': '{capability['explain_coingecko']['notes']}'}}`\n"
+        f"- explain_funding: `{{'dataset': '{funding_summary['dataset']}', 'best_sources_no_api_key': {[item['source'] for item in funding_summary['best_sources_no_api_key']]}}}`\n\n"
         "## Ingest Dataset Coverage\n\n"
         f"- requested_datasets: `{coverage['requested_datasets']}`\n"
         f"- dataset_coverage: `{coverage['dataset_coverage']}`\n\n"

@@ -17,7 +17,7 @@ _FALLBACK_EPOCH_MS_BASE = 1_700_000_000_000
 class MarketSourceAdapter:
     source: str
     discover_assets: Callable[[JsonGetter, int], list[str]]
-    fetch_datasets: Callable[[JsonGetter, str], dict[str, Any]]
+    fetch_datasets: Callable[[JsonGetter, str, list[str], str, int], dict[str, Any]]
     required_api_key_env: str | None = None
 
 
@@ -51,6 +51,37 @@ def _attach_derived_funding(symbol: str, datasets: dict[str, Any]) -> dict[str, 
     return copied
 
 
+def _is_dataset_requested(requested_datasets: list[str], dataset: str) -> bool:
+    return not requested_datasets or dataset in requested_datasets
+
+
+def _is_daily_timeframe(timeframe: str) -> bool:
+    normalized = timeframe.lower().strip()
+    return normalized in {"1d", "d", "day", "daily"}
+
+
+def _alpha_vantage_series_key(function_name: str, interval: str) -> str:
+    if function_name == "TIME_SERIES_DAILY":
+        return "Time Series (Daily)"
+    return f"Time Series ({interval})"
+
+
+def _alpha_vantage_function(timeframe: str) -> tuple[str, str | None]:
+    if _is_daily_timeframe(timeframe):
+        return "TIME_SERIES_DAILY", None
+    return "TIME_SERIES_INTRADAY", "1min"
+
+
+def _finnhub_resolution(timeframe: str) -> str:
+    return "D" if _is_daily_timeframe(timeframe) else "1"
+
+
+def _polygon_span(timeframe: str) -> tuple[int, str, str, str]:
+    if _is_daily_timeframe(timeframe):
+        return 1, "day", "2024-01-01", "2025-01-01"
+    return 1, "minute", "2025-01-01", "2025-01-02"
+
+
 def _to_epoch_ms(value: str | None, fallback_ms: int) -> int:
     if not value:
         return fallback_ms
@@ -71,19 +102,25 @@ def _binance_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return symbols[:max_symbols]
 
 
-def _binance_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _binance_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,
+) -> dict[str, Any]:
     return {
         "tick": [get_json("https://fapi.binance.com/fapi/v1/ticker/price", {"symbol": symbol})],
         "kline": get_json(
             "https://fapi.binance.com/fapi/v1/klines",
-            {"symbol": symbol, "interval": "1m", "limit": 180},
+            {"symbol": symbol, "interval": "1m", "limit": max(1, min(limit, 180))},
         ),
-        "trade": get_json("https://fapi.binance.com/fapi/v1/trades", {"symbol": symbol, "limit": 25}),
+        "trade": get_json("https://fapi.binance.com/fapi/v1/trades", {"symbol": symbol, "limit": max(1, min(limit, 25))}),
         "orderbook": [
             get_json("https://fapi.binance.com/fapi/v1/depth", {"symbol": symbol, "limit": 10})
         ],
         "funding": get_json(
-            "https://fapi.binance.com/fapi/v1/fundingRate", {"symbol": symbol, "limit": 5}
+            "https://fapi.binance.com/fapi/v1/fundingRate", {"symbol": symbol, "limit": max(1, min(limit, 5))}
         ),
     }
 
@@ -98,7 +135,13 @@ def _bybit_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return symbols[:max_symbols]
 
 
-def _bybit_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _bybit_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,
+) -> dict[str, Any]:
     return {
         "tick": get_json(
             "https://api.bybit.com/v5/market/tickers",
@@ -108,13 +151,13 @@ def _bybit_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         .get("list", []),
         "kline": get_json(
             "https://api.bybit.com/v5/market/kline",
-            {"category": "linear", "symbol": symbol, "interval": 1, "limit": 180},
+            {"category": "linear", "symbol": symbol, "interval": 1, "limit": max(1, min(limit, 180))},
         )
         .get("result", {})
         .get("list", []),
         "trade": get_json(
             "https://api.bybit.com/v5/market/recent-trade",
-            {"category": "linear", "symbol": symbol, "limit": 25},
+            {"category": "linear", "symbol": symbol, "limit": max(1, min(limit, 25))},
         )
         .get("result", {})
         .get("list", []),
@@ -127,7 +170,7 @@ def _bybit_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         ],
         "funding": get_json(
             "https://api.bybit.com/v5/market/funding/history",
-            {"category": "linear", "symbol": symbol, "limit": 5},
+            {"category": "linear", "symbol": symbol, "limit": max(1, min(limit, 5))},
         )
         .get("result", {})
         .get("list", []),
@@ -146,7 +189,13 @@ def _kraken_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return sorted(symbols)[:max_symbols]
 
 
-def _kraken_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _kraken_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,  # noqa: ARG001
+) -> dict[str, Any]:
     ticker = get_json("https://api.kraken.com/0/public/Ticker", {"pair": symbol})
     ohlc = get_json("https://api.kraken.com/0/public/OHLC", {"pair": symbol, "interval": 1})
     trades = get_json("https://api.kraken.com/0/public/Trades", {"pair": symbol})
@@ -173,7 +222,13 @@ def _coinbase_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return symbols[:max_symbols]
 
 
-def _coinbase_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _coinbase_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,  # noqa: ARG001
+) -> dict[str, Any]:
     return _attach_derived_funding(
         symbol,
         {
@@ -204,7 +259,13 @@ def _yahoo_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return symbols[:max_symbols]
 
 
-def _yahoo_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _yahoo_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,  # noqa: ARG001
+) -> dict[str, Any]:
     payload = get_json(
         f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
         {"interval": "1m", "range": "1d"},
@@ -261,19 +322,25 @@ def _alpha_vantage_discover(get_json: JsonGetter, max_symbols: int) -> list[str]
     return symbols[:max_symbols]
 
 
-def _alpha_vantage_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _alpha_vantage_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,
+    limit: int,
+) -> dict[str, Any]:
     api_key = os.getenv("ALPHAVANTAGE_API_KEY", "")
-    payload = get_json(
-        "https://www.alphavantage.co/query",
-        {
-            "function": "TIME_SERIES_INTRADAY",
-            "symbol": symbol,
-            "interval": "1min",
-            "outputsize": "compact",
-            "apikey": api_key,
-        },
-    )
-    points = payload.get("Time Series (1min)", {})
+    function_name, interval = _alpha_vantage_function(timeframe)
+    time_series_params: dict[str, Any] = {
+        "function": function_name,
+        "symbol": symbol,
+        "outputsize": "compact",
+        "apikey": api_key,
+    }
+    if interval:
+        time_series_params["interval"] = interval
+    payload = get_json("https://www.alphavantage.co/query", time_series_params)
+    points = payload.get(_alpha_vantage_series_key(function_name, interval or "1min"), {})
     klines: list[list[Any]] = []
     for index, (ts, row) in enumerate(points.items(), start=1):
         fallback = _FALLBACK_EPOCH_MS_BASE + (index * 60_000)
@@ -286,16 +353,33 @@ def _alpha_vantage_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
                 str(row.get("4. close", "0")),
             ]
         )
-    return _attach_derived_funding(
-        symbol,
-        {
-            "tick": [{"symbol": symbol, "price": klines[0][4] if klines else "0"}],
-            "kline": klines,
-            "trade": [{"symbol": symbol, "source": "alphavantage_intraday"}] if klines else [],
-            "orderbook": [{"symbol": symbol, "source": "alphavantage"}] if klines else [],
-            "funding": [],
-        },
-    )
+    datasets: dict[str, Any] = {
+        "tick": [{"symbol": symbol, "price": klines[0][4] if klines else "0"}],
+        "kline": klines[:limit],
+        "trade": [{"symbol": symbol, "source": "alphavantage_intraday"}] if klines else [],
+        "orderbook": [{"symbol": symbol, "source": "alphavantage"}] if klines else [],
+        "funding": [],
+    }
+    if _is_dataset_requested(requested_datasets, "tick"):
+        quote = get_json(
+            "https://www.alphavantage.co/query",
+            {"function": "GLOBAL_QUOTE", "symbol": symbol, "apikey": api_key},
+        )
+        quote_row = quote.get("Global Quote", {})
+        if quote_row:
+            datasets["tick"] = [
+                {
+                    "symbol": quote_row.get("01. symbol", symbol),
+                    "price": quote_row.get("05. price", quote_row.get("08. previous close", "0")),
+                    "timestamp": quote_row.get("07. latest trading day"),
+                }
+            ]
+    if _is_dataset_requested(requested_datasets, "fundamentals"):
+        datasets["fundamentals"] = get_json(
+            "https://www.alphavantage.co/query",
+            {"function": "OVERVIEW", "symbol": symbol, "apikey": api_key},
+        )
+    return _attach_derived_funding(symbol, datasets)
 
 
 def _twelvedata_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
@@ -308,7 +392,13 @@ def _twelvedata_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return symbols[:max_symbols]
 
 
-def _twelvedata_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _twelvedata_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,
+) -> dict[str, Any]:
     api_key = os.getenv("TWELVEDATA_API_KEY", "")
     payload = get_json(
         "https://api.twelvedata.com/time_series",
@@ -358,24 +448,43 @@ def _polygon_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return [str(item.get("ticker", "")) for item in payload.get("results", []) if item.get("ticker")][:max_symbols]
 
 
-def _polygon_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _polygon_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,
+    limit: int,
+) -> dict[str, Any]:
     api_key = os.getenv("POLYGON_API_KEY", "")
+    multiplier, timespan, start_date, end_date = _polygon_span(timeframe)
     payload = get_json(
-        f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/2025-01-01/2025-01-02",
-        {"adjusted": "true", "sort": "asc", "limit": 120, "apiKey": api_key},
+        f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/{multiplier}/{timespan}/{start_date}/{end_date}",
+        {"adjusted": "true", "sort": "asc", "limit": max(1, min(limit, 500)), "apiKey": api_key},
     )
     rows = payload.get("results", [])
     klines = [[row.get("t", 0), row.get("o", 0), row.get("h", 0), row.get("l", 0), row.get("c", 0)] for row in rows]
-    return _attach_derived_funding(
-        symbol,
-        {
-            "tick": [{"symbol": symbol, "price": rows[-1].get("c", 0)}] if rows else [],
-            "kline": klines,
-            "trade": [{"symbol": symbol, "source": "polygon_agg"}] if rows else [],
-            "orderbook": [{"symbol": symbol, "source": "polygon"}] if rows else [],
-            "funding": [],
-        },
-    )
+    datasets: dict[str, Any] = {
+        "tick": [{"symbol": symbol, "price": rows[-1].get("c", 0)}] if rows else [],
+        "kline": klines,
+        "trade": [{"symbol": symbol, "source": "polygon_agg"}] if rows else [],
+        "orderbook": [{"symbol": symbol, "source": "polygon"}] if rows else [],
+        "funding": [],
+    }
+    if _is_dataset_requested(requested_datasets, "news"):
+        news_payload = get_json(
+            "https://api.polygon.io/v2/reference/news",
+            {"ticker": symbol, "limit": max(1, min(limit, 10)), "apiKey": api_key},
+        )
+        datasets["news"] = news_payload.get("results", [])
+    if _is_dataset_requested(requested_datasets, "corporate_actions"):
+        actions_payload = get_json(
+            "https://api.polygon.io/v3/reference/splits",
+            {"ticker": symbol, "limit": max(1, min(limit, 10)), "apiKey": api_key},
+        )
+        datasets["corporate_actions"] = [
+            {**item, "type": item.get("type", "split")} for item in actions_payload.get("results", [])
+        ]
+    return _attach_derived_funding(symbol, datasets)
 
 
 def _finnhub_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
@@ -387,12 +496,18 @@ def _finnhub_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return [str(item.get("symbol", "")) for item in payload if item.get("symbol")][:max_symbols]
 
 
-def _finnhub_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _finnhub_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,
+    limit: int,
+) -> dict[str, Any]:
     api_key = os.getenv("FINNHUB_API_KEY", "")
     quote = get_json("https://finnhub.io/api/v1/quote", {"symbol": symbol, "token": api_key})
     candles = get_json(
         "https://finnhub.io/api/v1/stock/candle",
-        {"symbol": symbol, "resolution": "1", "count": 120, "token": api_key},
+        {"symbol": symbol, "resolution": _finnhub_resolution(timeframe), "count": max(1, min(limit, 120)), "token": api_key},
     )
     closes = candles.get("c", [])
     highs = candles.get("h", [])
@@ -403,16 +518,24 @@ def _finnhub_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         [timestamps[i] * 1000, opens[i], highs[i], lows[i], closes[i]]
         for i in range(min(len(timestamps), len(closes), len(opens), len(highs), len(lows)))
     ]
-    return _attach_derived_funding(
-        symbol,
-        {
-            "tick": [quote],
-            "kline": klines,
-            "trade": [{"symbol": symbol, "source": "finnhub"}] if klines else [],
-            "orderbook": [{"symbol": symbol, "source": "finnhub"}] if klines else [],
-            "funding": [],
-        },
-    )
+    datasets: dict[str, Any] = {
+        "tick": [quote],
+        "kline": klines,
+        "trade": [{"symbol": symbol, "source": "finnhub"}] if klines else [],
+        "orderbook": [{"symbol": symbol, "source": "finnhub"}] if klines else [],
+        "funding": [],
+    }
+    if _is_dataset_requested(requested_datasets, "news"):
+        datasets["news"] = get_json(
+            "https://finnhub.io/api/v1/company-news",
+            {"symbol": symbol, "from": "2025-01-01", "to": "2025-01-07", "token": api_key},
+        )
+    if _is_dataset_requested(requested_datasets, "fundamentals"):
+        datasets["fundamentals"] = get_json(
+            "https://finnhub.io/api/v1/stock/profile2",
+            {"symbol": symbol, "token": api_key},
+        )
+    return _attach_derived_funding(symbol, datasets)
 
 
 def _quandl_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
@@ -425,11 +548,17 @@ def _quandl_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return [str(item.get("dataset_code", "")) for item in rows if item.get("dataset_code")][:max_symbols]
 
 
-def _quandl_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _quandl_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,
+) -> dict[str, Any]:
     api_key = os.getenv("QUANDL_API_KEY", "")
     payload = get_json(
         f"https://data.nasdaq.com/api/v3/datasets/CHRIS/CME_{symbol}.json",
-        {"rows": 120, "api_key": api_key},
+        {"rows": max(1, min(limit, 120)), "api_key": api_key},
     )
     data = payload.get("dataset", {}).get("data", [])
     klines = []
@@ -438,16 +567,22 @@ def _quandl_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
             continue
         fallback = _FALLBACK_EPOCH_MS_BASE + (idx * 60_000)
         klines.append([_to_epoch_ms(str(row[0]), fallback), row[1], row[2], row[3], row[4]])
-    return _attach_derived_funding(
-        symbol,
-        {
-            "tick": [{"symbol": symbol, "price": klines[0][4]}] if klines else [],
-            "kline": klines,
-            "trade": [{"symbol": symbol, "source": "quandl"}] if klines else [],
-            "orderbook": [{"symbol": symbol, "source": "quandl"}] if klines else [],
-            "funding": [],
-        },
-    )
+    datasets: dict[str, Any] = {
+        "tick": [{"symbol": symbol, "price": klines[0][4]}] if klines else [],
+        "kline": klines,
+        "trade": [{"symbol": symbol, "source": "quandl"}] if klines else [],
+        "orderbook": [{"symbol": symbol, "source": "quandl"}] if klines else [],
+        "funding": [],
+    }
+    if _is_dataset_requested(requested_datasets, "macro"):
+        last_row = data[0] if data else []
+        datasets["macro"] = {
+            "base": symbol,
+            "date": str(last_row[0]) if last_row else "",
+            "rates": {symbol: last_row[4] if len(last_row) > 4 else 0},
+            "dataset": payload.get("dataset", {}).get("database_code", "CHRIS"),
+        }
+    return _attach_derived_funding(symbol, datasets)
 
 
 def _iex_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
@@ -460,7 +595,13 @@ def _iex_discover(get_json: JsonGetter, max_symbols: int) -> list[str]:
     return symbols[:max_symbols]
 
 
-def _iex_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
+def _iex_fetch(
+    get_json: JsonGetter,
+    symbol: str,
+    requested_datasets: list[str],
+    timeframe: str,  # noqa: ARG001
+    limit: int,
+) -> dict[str, Any]:
     api_key = os.getenv("IEX_CLOUD_API_KEY", "")
     quote = get_json(
         f"https://cloud.iexapis.com/stable/stock/{symbol}/quote",
@@ -477,16 +618,25 @@ def _iex_fetch(get_json: JsonGetter, symbol: str) -> dict[str, Any]:
         minute = str(row.get("minute", "")).strip()
         timestamp = _to_epoch_ms(f"{date_text}T{minute}:00" if date_text and minute else date_text, fallback)
         klines.append([timestamp, row.get("open", 0), row.get("high", 0), row.get("low", 0), row.get("close", 0)])
-    return _attach_derived_funding(
-        symbol,
-        {
-            "tick": [quote],
-            "kline": klines,
-            "trade": [{"symbol": symbol, "source": "iex"}] if klines else [],
-            "orderbook": [{"symbol": symbol, "source": "iex"}] if klines else [],
-            "funding": [],
-        },
-    )
+    datasets: dict[str, Any] = {
+        "tick": [quote],
+        "kline": klines[:limit],
+        "trade": [{"symbol": symbol, "source": "iex"}] if klines else [],
+        "orderbook": [{"symbol": symbol, "source": "iex"}] if klines else [],
+        "funding": [],
+    }
+    if _is_dataset_requested(requested_datasets, "news"):
+        datasets["news"] = get_json(
+            f"https://cloud.iexapis.com/stable/stock/{symbol}/news/last/5",
+            {"token": api_key},
+        )
+    if _is_dataset_requested(requested_datasets, "corporate_actions"):
+        actions = get_json(
+            f"https://cloud.iexapis.com/stable/stock/{symbol}/dividends/1y",
+            {"token": api_key},
+        )
+        datasets["corporate_actions"] = [{**item, "type": item.get("type", "dividend")} for item in actions]
+    return _attach_derived_funding(symbol, datasets)
 
 
 def build_market_source_registry() -> list[MarketSourceAdapter]:
@@ -560,7 +710,7 @@ def collect_market_source_data(
             if not symbols:
                 raise RuntimeError("discovery returned no symbols")
             selected_asset = _select_preferred_asset(symbols)
-            datasets = adapter.fetch_datasets(get_json, selected_asset)
+            datasets = adapter.fetch_datasets(get_json, selected_asset, [], "1m", 120)
             results.append(
                 MarketSourceResult(
                     source=adapter.source,

@@ -28,8 +28,10 @@ from src.algotradeplan.data.query import (
     dataset_status_for_source,
     explain_dataset,
     explain_source,
+    recommend_sources,
     source_summary,
     sources_for,
+    supported_use_cases,
     supports,
 )
 from src.algotradeplan.data.storage import InMemoryStorage, LocalArtifactStorage
@@ -180,6 +182,25 @@ class DataHub:
 
     def explain_dataset(self, dataset: str) -> dict[str, Any]:
         return explain_dataset(self._capabilities, dataset)
+
+    def recommend_sources(
+        self,
+        use_case: str,
+        *,
+        allow_api_key: bool = True,
+        prefer_live: bool = True,
+        limit: int | None = None,
+    ) -> list[dict[str, str]]:
+        return recommend_sources(
+            self._capabilities,
+            use_case,
+            allow_api_key=allow_api_key,
+            prefer_live=prefer_live,
+            limit=limit,
+        )
+
+    def supported_use_cases(self) -> list[str]:
+        return supported_use_cases()
 
     def dataset_sources_matrix(self, datasets: list[str] | None = None) -> list[dict[str, str]]:
         return dataset_sources_matrix(self._capabilities, datasets)

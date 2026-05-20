@@ -11,6 +11,7 @@ have been removed to keep the repo smaller and easier to scan.
 - `framework_status.md`: generated project status and next actions
 - `next_actions.md`: generated prioritized implementation plan (P0-P3)
 - `data_source_coverage.md`: source x dataset coverage/status matrix (generated)
+- `source_recommendations.md`: generated use-case based source recommendation table
 - `extending.md`: plugin contract and extension workflow
 - `runbook_masterlist.md` + `runbooks/`: operational procedures
 - `../ONBOARDING.md`, `onboarding_10min.md`, `usage_with_notebooks.md`: how to run

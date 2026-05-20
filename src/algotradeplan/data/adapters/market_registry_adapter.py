@@ -28,12 +28,12 @@ class MarketRegistrySourceAdapter:
     def fetch_raw(
         self,
         symbol: str,
-        datasets: list[str],  # noqa: ARG002
+        datasets: list[str],
         *,
-        timeframe: str = "1m",  # noqa: ARG002
+        timeframe: str = "1m",
         limit: int = 500,
     ) -> dict[str, Any]:
-        payload = self._adapter.fetch_datasets(self._json_getter, symbol)
+        payload = self._adapter.fetch_datasets(self._json_getter, symbol, datasets, timeframe, limit)
         trimmed: dict[str, Any] = {}
         for key, value in payload.items():
             if isinstance(value, list):

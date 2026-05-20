@@ -25,12 +25,17 @@ class FrameworkScriptsTest(unittest.TestCase):
         self.assertIn("priority_actions", report)
         self.assertIn("framework_score", report)
         self.assertIn("live_sources_count", report["coverage_summary"])
+        self.assertIn("use_case_coverage", report)
+        self.assertIn("use_case_coverage_gaps", report)
+        self.assertIn("recommended_next_adapter_work", report)
         markdown = render_markdown(report)
         self.assertIn("# Framework Status", markdown)
         self.assertIn("## Coverage Summary", markdown)
+        self.assertIn("## Use-case coverage gaps", markdown)
         plan = render_next_actions_markdown(report)
         self.assertIn("# Next Actions", plan)
         self.assertIn("## P0 - Validation / Artifacts", plan)
+        self.assertIn("## P1 - Use-case coverage gaps", plan)
 
     def test_framework_status_cli_options(self) -> None:
         script = str(Path("scripts/framework_status.py"))
@@ -75,6 +80,7 @@ class FrameworkScriptsTest(unittest.TestCase):
         )
         self.assertEqual(pretty.returncode, 0)
         self.assertIn("Step 1", pretty.stdout)
+        self.assertIn("recommendations", pretty.stdout)
         markdown = subprocess.run(
             [sys.executable, script, "--all", "--offline", "--markdown"],
             capture_output=True,
@@ -83,6 +89,7 @@ class FrameworkScriptsTest(unittest.TestCase):
         )
         self.assertEqual(markdown.returncode, 0)
         self.assertIn("# Tutorial Walkthrough", markdown.stdout)
+        self.assertIn("## Source Recommendation Examples", markdown.stdout)
         write_doc = subprocess.run(
             [sys.executable, script, "--all", "--offline", "--write-doc"],
             capture_output=True,

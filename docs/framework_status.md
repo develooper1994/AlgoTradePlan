@@ -1,7 +1,7 @@
 # Framework Status
 
-Generated: 2026-05-20T08:31:45.457148+00:00
-framework_score: 70/100
+Generated: 2026-05-20T09:13:34.147198+00:00
+framework_score: 80/100
 
 ## Module Status
 - [x] **DataHub** — Capability query API and ETL facade are available.
@@ -35,36 +35,38 @@ framework_score: 70/100
 - Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).
 - Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).
 - Run offline tutorial walkthrough (`python scripts/tutorial_mode.py --all --offline --write-doc`).
-- Refresh stale or missing artifacts listed in the artifact state section.
 - Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).
 ### P1
-- Add and document best_sources_for query recipes in tutorial and quickstart docs.
+- Add and document recommend_sources / best_sources_for query recipes in tutorial and quickstart docs.
 - Expose source and dataset explanation snippets in user-facing docs/notebooks.
-- Keep capability and coverage indices synchronized with generated docs.
+- Keep capability, recommendation, and coverage indices synchronized with generated docs.
 ### P2
 - Improve CoinGecko synthetic OHLCV transparency and dataset notes.
 - Improve DefiLlama TVL/protocol metadata clarity for macro/fundamentals.
-- Reduce metadata-only adapters in priority order: finnhub, iex_cloud, polygon_io, quandl, alpha_vantage.
+- Reduce metadata-only adapters in priority order: coingecko, defillama, quandl.
 ### P3
 - Expand data-quality checks and monitor quality issues over time.
 - Harden backtest/risk/portfolio integration scenarios.
 - Refine storage/provenance artifact layout and retention policy.
 
 ## Top Metadata-only Adapter Candidates
-- finnhub (metadata_only_datasets=2, status=api_key)
-- iex_cloud (metadata_only_datasets=2, status=api_key)
-- polygon_io (metadata_only_datasets=2, status=api_key_or_plan)
-- quandl (metadata_only_datasets=2, status=api_key)
-- alpha_vantage (metadata_only_datasets=1, status=api_key)
 - coingecko (metadata_only_datasets=1, status=partial)
 - defillama (metadata_only_datasets=1, status=partial)
+- quandl (metadata_only_datasets=1, status=api_key)
+
+## Recommended next adapter work
+- _none_
+
+## Use-case coverage gaps
+- _none_
 
 ## Artifact State
 - docs/framework_status.md: fresh (0d old)
 - docs/next_actions.md: fresh (0d old)
 - docs/data_source_coverage.md: fresh (0d old)
+- docs/source_recommendations.md: fresh (0d old)
 - artifacts/tutorial/tutorial_walkthrough.md: fresh (0d old)
-- artifacts/real_data_smoke_report.json: missing
+- artifacts/real_data_smoke_report.json: fresh (0d old)
 
 ## Risks / Technical Debt
 - API-key and plan-scoped providers can report broader theoretical coverage than current implemented datasets.
@@ -74,8 +76,9 @@ framework_score: 70/100
 - source count: 23
 - live sources count: 10
 - api_key sources count: 8
-- metadata_only sources count: 7
+- metadata_only sources count: 3
 - fallback sources count: 1
+- public/fallback use-case coverage count: 10
 - unsupported dataset requests behavior: [{"source": "offline_fallback", "reason": "unsupported_dataset:news"}]
 
 ## Validation Commands
