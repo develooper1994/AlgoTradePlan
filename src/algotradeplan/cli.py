@@ -330,9 +330,9 @@ def cmd_explain(args: argparse.Namespace) -> int:
         source_name: str = result.get("source", name)
         impl_status: str = result.get("implementation_status", "?")
         needs_key: object = result.get("requires_api_key", "?")
-        key_env_name: str = result.get("api_key_env", "") or ""
-        datasets_list: list[str] = result.get("implemented_datasets", []) or []
-        source_notes: str = result.get("notes", "") or ""
+        key_env_name: str = result.get("api_key_env", "")
+        datasets_list: list[str] = result.get("implemented_datasets", [])
+        source_notes: str = result.get("notes", "")
         print(f"Source: {source_name}")
         print(f"  implementation_status: {impl_status}")
         print(f"  requires_api_key: {needs_key}")
@@ -351,7 +351,7 @@ def cmd_explain(args: argparse.Namespace) -> int:
             return 0
         dataset_name: str = result.get("dataset", name)
         dataset_desc: str = result.get("description", "?")
-        best_public: list[dict[str, Any]] = result.get("best_sources_no_api_key", []) or []
+        best_public: list[dict[str, Any]] = result.get("best_sources_no_api_key", [])
         print(f"Dataset: {dataset_name}")
         print(f"  description: {dataset_desc}")
         if best_public:
