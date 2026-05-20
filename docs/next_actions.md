@@ -7,6 +7,7 @@
 - Generate offline data health (`python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline`).
 - Record offline demo experiment (`python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline`).
 - Dry-run executable recipe (`python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run`).
+- Refresh stale or missing artifacts listed in the artifact state section.
 - Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).
 
 ## P1 - Capability UX
