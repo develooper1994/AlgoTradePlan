@@ -84,10 +84,8 @@ class PreflightChecker:
                 blocking_issues.append(f"{dataset} is metadata_only for {source_name}")
             if status in {"api_key", "api_key_or_plan"} and not allow_api_key:
                 env = self._hub.api_key_env(source_name)
-                if env:
-                    blocking_issues.append(f"{dataset} requires API key ({env})")
-                else:
-                    blocking_issues.append(f"{dataset} requires API key")
+                env_suffix = f" ({env})" if env else ""
+                blocking_issues.append(f"{dataset} requires API key{env_suffix}")
             if status in {"partial", "fallback"}:
                 warnings.append(f"{source_name} {dataset} status is {status}")
 

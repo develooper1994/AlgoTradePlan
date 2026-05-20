@@ -65,7 +65,7 @@ def _load_recipe(path: Path) -> dict[str, Any]:
     for line in raw.splitlines():
         if not line.strip() or line.strip().startswith("#"):
             continue
-        if line.startswith("  ") and not (current_map is not None and current_key):
+        if line.startswith("  ") and (current_map is None or not current_key):
             raise ValueError(
                 f"Unexpected nested recipe line: {line}. Nested keys must follow a parent key like 'risk:'"
             )

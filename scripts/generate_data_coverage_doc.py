@@ -105,9 +105,13 @@ def _recommendation_table_rows_from_index(
         public_recommendations = public_recommendations_by_use_case.get(use_case, [])
         best = public_recommendations[:2] or all_recommendations[:2]
         best_source_names = {row["source"] for row in best}
-        alternatives = [
-            item for item in all_recommendations if item["source"] not in best_source_names
-        ][:2]
+        alternatives: list[dict[str, str]] = []
+        for item in all_recommendations:
+            if item["source"] in best_source_names:
+                continue
+            alternatives.append(item)
+            if len(alternatives) == 2:
+                break
         if best:
             notes = best[0]["reason"]
         elif all_recommendations:
