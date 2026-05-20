@@ -29,6 +29,15 @@ def _joined_sources(cells: list[dict[str, object]], cell_type: str) -> str:
 def main() -> None:
     repo_root = Path(__file__).resolve().parent.parent
     notebook_expectations = {
+        "00_framework_tutorial.ipynb": {
+            "markdown": ["DataHub", "ETL", "strategy", "portfolio", "report"],
+            "code": [
+                "from algotradeplan.data import DataHub, ETL",
+                "coverage_table(",
+                "TradeFlow",
+                "PortfolioManager",
+            ],
+        },
         "01_real_data_smoke.ipynb": {
             "markdown": ["DataHub", "coverage table", "source issues"],
             "code": [

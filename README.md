@@ -38,6 +38,9 @@ make lint             # compile-check all Python files
 make test             # run full unit/adapter/smoke test suite
 make smoke            # dry-run hello-world + notebook smoke
 make runbook_check    # verify runbook index exists
+python scripts/framework_status.py
+python scripts/tutorial_mode.py --all --offline
+python scripts/generate_data_coverage_doc.py
 ```
 
 ## DataHub / ETL
@@ -48,6 +51,8 @@ from algotradeplan.data import DataHub, ETL
 hub = DataHub()
 hub.sources()
 hub.coverage_table()
+hub.dataset_status("coingecko", "kline")
+hub.sources_for(dataset="news")
 hub.discover_assets(source="binance_futures", limit=10)
 hub.ingest(source="coingecko", symbol="bitcoin", datasets=["tick", "kline"], allow_partial=True)
 
@@ -109,11 +114,13 @@ export IEX_CLOUD_API_KEY="..."
 jupyter lab
 ```
 
+- `notebooks/00_framework_tutorial.ipynb`
 - `notebooks/01_real_data_smoke.ipynb`
 - `notebooks/02_strategy_backtest_portfolio.ipynb`
 - `notebooks/03_multi_source_asset_coverage.ipynb`
 
 Notebook amaçları:
+- `00_framework_tutorial`: baştan sona DataHub → ETL → strategy/backtest → risk/execution → portfolio akışı
 - `01_real_data_smoke`: coverage tablosu + çoklu source ingest smoke
 - `02_strategy_backtest_portfolio`: ETL + strategy/risk/execution/portfolio zinciri
 - `03_multi_source_asset_coverage`: implementation status, API-key filtreleme, unsupported dataset davranışı
@@ -131,6 +138,8 @@ Coverage snapshot:
 - `ONBOARDING.md` / `docs/onboarding_10min.md` — 10-min onboarding
 - `docs/ARCHITECTURE.md` — component diagram and design decisions
 - `docs/quickstart.md` — step-by-step usage
+- `docs/tutorial.md` — CLI + notebook tutorial walkthrough
+- `docs/framework_status.md` — generated framework status / next actions
 - `docs/data_source_coverage.md` — source/dataset implementation coverage matrix
 - `docs/extending.md` — adding new plugins
 - `docs/usage_with_notebooks.md` — notebook workflow guide

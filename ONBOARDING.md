@@ -13,6 +13,7 @@
 - phase rules and decision log: `docs/MASTER_PLAN.md`
 - active/next phase status: `docs/PHASE_STATUS.md`
 - notebook workflow: `docs/usage_with_notebooks.md`
+- tutorial walkthrough: `docs/tutorial.md`
 - extension workflow: `docs/extending.md`
 - runbook index: `docs/runbook_masterlist.md`
 
@@ -25,7 +26,7 @@ For new asset or source plugins:
 5. ensure relevant runbook references are present
 
 ## Jupyter + Real Data
-- Start with `notebooks/01_real_data_smoke.ipynb`, then continue with
+- Start with `notebooks/00_framework_tutorial.ipynb`, then continue with
   `notebooks/02_strategy_backtest_portfolio.ipynb` and
   `notebooks/03_multi_source_asset_coverage.ipynb`.
 - Notebook workflows use the public `algotradeplan.data` API and the same

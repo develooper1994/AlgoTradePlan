@@ -19,13 +19,16 @@ class WorldBankAdapter:
     def fetch_raw(
         self,
         symbol: str,
-        datasets: list[str],  # noqa: ARG002
+        datasets: list[str],
         *,
-        timeframe: str = "1m",  # noqa: ARG002
+        timeframe: str = "1y",  # noqa: ARG002
         limit: int = 500,
+        country: str = "WLD",
+        **filters: Any,
     ) -> dict[str, Any]:
+        country_code = str(filters.get("country", country) or "WLD").upper()
         payload = self._json_getter(
-            f"https://api.worldbank.org/v2/country/WLD/indicator/{symbol}",
+            f"https://api.worldbank.org/v2/country/{country_code}/indicator/{symbol}",
             {"format": "json", "per_page": min(100, max(1, limit))},
         )
         rows = payload[1] if isinstance(payload, list) and len(payload) > 1 else []
@@ -34,5 +37,10 @@ class WorldBankAdapter:
             for row in rows
             if isinstance(row, dict) and row.get("date")
         }
-        snapshot = {"base": symbol, "date": rows[0].get("date") if rows else "", "rates": rates}
-        return {"macro": snapshot}
+        snapshot = {
+            "base": symbol,
+            "date": rows[0].get("date") if rows else "",
+            "rates": rates,
+            "country": country_code,
+        }
+        return {"macro": snapshot} if "macro" in datasets else {}
