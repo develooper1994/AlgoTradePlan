@@ -29,6 +29,8 @@ ARTIFACT_PATHS = {
     "source_recommendations_doc": REPO_ROOT / "docs" / "source_recommendations.md",
     "tutorial_walkthrough": REPO_ROOT / "artifacts" / "tutorial" / "tutorial_walkthrough.md",
     "real_data_smoke_report": REPO_ROOT / "artifacts" / "real_data_smoke_report.json",
+    "offline_data_health_report": REPO_ROOT / "artifacts" / "data_health" / "offline_fallback_BTCUSDT_health.md",
+    "offline_experiment_summary": REPO_ROOT / "artifacts" / "experiments",
 }
 EXPECTED_TESTS = [
     REPO_ROOT / "tests" / "unit" / "test_data_api.py",
@@ -86,6 +88,9 @@ def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
         "Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).",
         "Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).",
         "Run offline tutorial walkthrough (`python scripts/tutorial_mode.py --all --offline --write-doc`).",
+        "Generate offline data health (`python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline`).",
+        "Record offline demo experiment (`python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline`).",
+        "Dry-run executable recipe (`python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run`).",
     ]
     if any(item["status"] != "fresh" for item in report["artifact_state"]):
         p0.append("Refresh stale or missing artifacts listed in the artifact state section.")
@@ -94,6 +99,8 @@ def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
         "Add and document recommend_sources / best_sources_for query recipes in tutorial and quickstart docs.",
         "Expose source and dataset explanation snippets in user-facing docs/notebooks.",
         "Keep capability, recommendation, and coverage indices synchronized with generated docs.",
+        "Keep strategy catalog metadata synchronized with preflight checks and recipes.",
+        "Document preflight/data-health/experiment workflow in tutorial and README.",
     ]
     p1.extend(
         f"Use-case gap: {item}"
@@ -103,12 +110,14 @@ def _build_priority_actions(report: dict[str, Any]) -> dict[str, list[str]]:
         "Improve CoinGecko synthetic OHLCV transparency and dataset notes.",
         "Improve DefiLlama TVL/protocol metadata clarity for macro/fundamentals.",
         f"Reduce metadata-only adapters in priority order: {', '.join(metadata_candidates) if metadata_candidates else 'none'}.",
+        "Complete missing strategy metadata entries in strategy catalog.",
     ]
     p2.extend(report["recommended_next_adapter_work"][:5])
     p3 = [
         "Expand data-quality checks and monitor quality issues over time.",
         "Harden backtest/risk/portfolio integration scenarios.",
         "Refine storage/provenance artifact layout and retention policy.",
+        "Expand recipe coverage for additional multi-source and asset-class workflows.",
     ]
     return {"P0": p0, "P1": p1, "P2": p2, "P3": p3}
 
@@ -246,6 +255,26 @@ def build_status_report() -> dict[str, Any]:
             "done": (REPO_ROOT / "docs" / "tutorial.md").exists(),
             "detail": "Tutorial guide present." if (REPO_ROOT / "docs" / "tutorial.md").exists() else "Tutorial guide missing.",
         },
+        "research/preflight": {
+            "done": (REPO_ROOT / "src" / "algotradeplan" / "research" / "preflight.py").exists(),
+            "detail": "Preflight runnability checks available.",
+        },
+        "data_health_report": {
+            "done": (REPO_ROOT / "scripts" / "data_health_report.py").exists(),
+            "detail": "Dataset health report CLI available.",
+        },
+        "strategy_catalog": {
+            "done": (REPO_ROOT / "docs" / "strategy_catalog.md").exists(),
+            "detail": "Strategy capability catalog document available.",
+        },
+        "experiment_registry": {
+            "done": (REPO_ROOT / "src" / "algotradeplan" / "research" / "experiments.py").exists(),
+            "detail": "Experiment artifact registry available.",
+        },
+        "recipes": {
+            "done": (REPO_ROOT / "scripts" / "run_recipe.py").exists() and (REPO_ROOT / "recipes").exists(),
+            "detail": "Executable recipe runner and sample recipe folder available.",
+        },
     }
     artifact_state = [_artifact_state(path) for path in ARTIFACT_PATHS.values()]
     missing_tests = [str(path.relative_to(REPO_ROOT)) for path in EXPECTED_TESTS if not path.exists()]
@@ -284,6 +313,10 @@ def build_status_report() -> dict[str, Any]:
             "python scripts/framework_status.py --write-doc --write-plan",
             "python scripts/generate_data_coverage_doc.py",
             "python scripts/tutorial_mode.py --all --offline --write-doc",
+            "python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop",
+            "python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline",
+            "python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline",
+            "python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run",
             "python scripts/e2e_real_data_smoke.py --interactive --allow-partial",
         ],
     }

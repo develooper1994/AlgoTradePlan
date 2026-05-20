@@ -73,6 +73,22 @@ hub.dataset_sources_matrix(["kline", "news", "macro", "fundamentals"])
 hub.asset_sources_matrix(["crypto_spot", "equity", "macro"])
 ```
 
+## Research preflight / health / experiment / recipe
+
+```bash
+python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop
+python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline
+python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline
+python scripts/run_recipe.py recipes/crypto_momentum.yaml
+python scripts/run_recipe.py recipes/funding_carry.yaml --dry-run
+```
+
+- **Preflight**: source + dataset + strategy kombinasyonu çalıştırılabilir mi?
+- **Data health**: ingest sonrası kalite ve issue sayaçları.
+- **Strategy catalog**: `docs/strategy_catalog.md` ve `src/algotradeplan/strategies/catalog.py`.
+- **Experiment registry**: `artifacts/experiments/<experiment_id>/`.
+- **Recipes**: `recipes/*.yaml` ile tekrar çalıştırılabilir araştırma akışları.
+
 CLI output modes:
 - Default: JSON (backward compatible, machine-friendly).
 - `--pretty`: human-friendly terminal walkthrough.

@@ -1,6 +1,6 @@
 # Framework Status
 
-Generated: 2026-05-20T09:53:46.384656+00:00
+Generated: 2026-05-20T10:20:58.477359+00:00
 framework_score: 78/100
 
 ## Module Status
@@ -14,6 +14,11 @@ framework_score: 78/100
 - [x] **execution** — Simulated execution connector exists.
 - [x] **portfolio** — PortfolioManager and ledger exist.
 - [x] **docs** — Tutorial guide present.
+- [x] **research/preflight** — Preflight runnability checks available.
+- [x] **data_health_report** — Dataset health report CLI available.
+- [x] **strategy_catalog** — Strategy capability catalog document available.
+- [x] **experiment_registry** — Experiment artifact registry available.
+- [x] **recipes** — Executable recipe runner and sample recipe folder available.
 
 ## Completed Components
 - DataHub
@@ -26,6 +31,11 @@ framework_score: 78/100
 - execution
 - portfolio
 - docs
+- research/preflight
+- data_health_report
+- strategy_catalog
+- experiment_registry
+- recipes
 
 ## Pending Components
 - _none_
@@ -35,20 +45,27 @@ framework_score: 78/100
 - Run framework status (`python scripts/framework_status.py --write-doc --write-plan`).
 - Regenerate coverage docs (`python scripts/generate_data_coverage_doc.py`).
 - Run offline tutorial walkthrough (`python scripts/tutorial_mode.py --all --offline --write-doc`).
+- Generate offline data health (`python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline`).
+- Record offline demo experiment (`python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline`).
+- Dry-run executable recipe (`python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run`).
 - Refresh stale or missing artifacts listed in the artifact state section.
 - Run real-data smoke (`python scripts/e2e_real_data_smoke.py --interactive --allow-partial`).
 ### P1
 - Add and document recommend_sources / best_sources_for query recipes in tutorial and quickstart docs.
 - Expose source and dataset explanation snippets in user-facing docs/notebooks.
 - Keep capability, recommendation, and coverage indices synchronized with generated docs.
+- Keep strategy catalog metadata synchronized with preflight checks and recipes.
+- Document preflight/data-health/experiment workflow in tutorial and README.
 ### P2
 - Improve CoinGecko synthetic OHLCV transparency and dataset notes.
 - Improve DefiLlama TVL/protocol metadata clarity for macro/fundamentals.
 - Reduce metadata-only adapters in priority order: coingecko, defillama, quandl.
+- Complete missing strategy metadata entries in strategy catalog.
 ### P3
 - Expand data-quality checks and monitor quality issues over time.
 - Harden backtest/risk/portfolio integration scenarios.
 - Refine storage/provenance artifact layout and retention policy.
+- Expand recipe coverage for additional multi-source and asset-class workflows.
 
 ## Top Metadata-only Adapter Candidates
 - coingecko (metadata_only_datasets=1, status=partial)
@@ -68,6 +85,8 @@ framework_score: 78/100
 - docs/source_recommendations.md: fresh (0d old)
 - artifacts/tutorial/tutorial_walkthrough.md: fresh (0d old)
 - artifacts/real_data_smoke_report.json: missing
+- artifacts/data_health/offline_fallback_BTCUSDT_health.md: fresh (0d old)
+- artifacts/experiments: fresh (0d old)
 
 ## Risks / Technical Debt
 - API-key and plan-scoped providers can report broader theoretical coverage than current implemented datasets.
@@ -90,4 +109,8 @@ framework_score: 78/100
 - `python scripts/framework_status.py --write-doc --write-plan`
 - `python scripts/generate_data_coverage_doc.py`
 - `python scripts/tutorial_mode.py --all --offline --write-doc`
+- `python scripts/preflight_check.py --source coingecko --symbol bitcoin --datasets kline funding --strategy ema_cross_atr_stop`
+- `python scripts/data_health_report.py --source offline_fallback --symbol BTCUSDT --datasets kline funding --offline`
+- `python scripts/run_experiment.py --source offline_fallback --symbol BTCUSDT --strategy ema_cross_atr_stop --offline`
+- `python scripts/run_recipe.py recipes/crypto_momentum.yaml --dry-run`
 - `python scripts/e2e_real_data_smoke.py --interactive --allow-partial`
