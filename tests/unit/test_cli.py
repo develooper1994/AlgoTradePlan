@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -11,12 +14,79 @@ from pathlib import Path
 class CLIEntryPointTest(unittest.TestCase):
     """Test that ``python -m src.algotradeplan`` subcommands work correctly."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._tmp_dir = tempfile.TemporaryDirectory()
+        cls._bridge_path = Path(cls._tmp_dir.name) / "market_data_bridge_stub.py"
+        cls._bridge_path.write_text(
+            textwrap.dedent(
+                """
+                import json
+                import sys
+
+                operation = sys.argv[1] if len(sys.argv) > 1 else ""
+                payload = {}
+                try:
+                    payload = json.loads(sys.stdin.read() or "{}")
+                except json.JSONDecodeError:
+                    payload = {}
+
+                source = payload.get("source", "offline_fallback")
+                if operation == "supported_use_cases":
+                    out = ["crypto_spot_kline", "tefas_fund_screener", "offline_demo"]
+                elif operation == "recommend_sources":
+                    use_case = payload.get("use_case", "")
+                    source_name = "tefas_public" if use_case == "tefas_fund_screener" else "offline_fallback"
+                    out = [{"source": source_name, "dataset": "kline", "dataset_status": "fallback", "asset_status": "fallback", "requires_api_key": "no", "reason": "offline-safe"}]
+                elif operation == "dataset_status":
+                    dataset = payload.get("dataset", "")
+                    out = "unsupported" if source == "coingecko" and dataset == "funding" else "fallback"
+                elif operation == "source_summary":
+                    out = {"source": source, "asset_classes": ["crypto_perpetual"], "extra_metadata": {}, "notes": "", "implementation_status": "fallback", "metadata_only_datasets": []}
+                elif operation == "best_sources_for":
+                    out = [{"source": "offline_fallback", "dataset": "kline", "dataset_status": "fallback", "asset_status": "fallback", "requires_api_key": "no", "reason": "offline-safe"}]
+                elif operation == "explain_source":
+                    out = {"source": source, "implementation_status": "fallback"}
+                elif operation == "explain_dataset":
+                    out = {"dataset": payload.get("dataset", ""), "sources": ["offline_fallback"]}
+                elif operation == "sources":
+                    out = ["offline_fallback", "coingecko"]
+                elif operation == "coverage_table":
+                    out = [{"Source": "offline_fallback", "OHLCV/Kline": "fallback"}]
+                elif operation == "ingest":
+                    out = {
+                        "source": source,
+                        "symbol": payload.get("symbol", "BTCUSDT"),
+                        "requested_datasets": payload.get("datasets", []),
+                        "dataset_coverage": {"kline": 1},
+                        "records": [{"key": "k1", "observed_at": "2026-01-01T00:00:00Z", "domain": "market", "source": source, "asset_type": "crypto", "payload": {"close": 100.0}, "metadata": {"dataset": "kline"}}],
+                        "quality_report": {"passed": True, "checks": ["records_present"], "issues": []},
+                        "storage_receipts": [],
+                        "source_issues": [],
+                    }
+                else:
+                    out = []
+
+                print(json.dumps(out))
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._tmp_dir.cleanup()
+
     def _run(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = dict(os.environ)
+        env["MARKET_DATA_BIN"] = f"{sys.executable} {self._bridge_path}"
         return subprocess.run(
             [sys.executable, "-m", "src.algotradeplan", *args],
             capture_output=True,
             text=True,
             check=False,
+            env=env,
         )
 
     def test_help_exits_zero(self) -> None:

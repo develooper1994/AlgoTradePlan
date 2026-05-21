@@ -1,4 +1,4 @@
-"""MarketData storage compatibility exports."""
+"""Deprecated compatibility wrapper for storage plugins."""
 
 from src.algotradeplan.data.storage import InMemoryStorage, LocalArtifactStorage
 

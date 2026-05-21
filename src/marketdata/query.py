@@ -1,4 +1,4 @@
-"""MarketData query/recommendation/explain compatibility exports."""
+"""MarketData query/recommendation compatibility exports."""
 
 from src.algotradeplan.data.query import (
     asset_sources_matrix,

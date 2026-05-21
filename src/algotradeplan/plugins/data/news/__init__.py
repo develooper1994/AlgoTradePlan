@@ -1,1 +1,0 @@
-"""News data plugin examples."""

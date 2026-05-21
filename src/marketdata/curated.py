@@ -1,8 +1,12 @@
-"""MarketData curated-lane compatibility exports."""
+"""Curated infrastructure moved to MarketData; kept for import compatibility."""
 
-from src.algotradeplan.plugins.data.curated.feature_view import (
-    ExampleFeatureViewPlugin,
-    FeatureViewResult,
-)
+
+class FeatureViewResult:  # pragma: no cover - compatibility stub
+    pass
+
+
+class ExampleFeatureViewPlugin:  # pragma: no cover - compatibility stub
+    pass
+
 
 __all__ = ["FeatureViewResult", "ExampleFeatureViewPlugin"]

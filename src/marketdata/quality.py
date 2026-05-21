@@ -1,4 +1,4 @@
-"""MarketData quality-check compatibility exports."""
+"""Deprecated compatibility wrapper for quality plugin."""
 
 from src.algotradeplan.data.quality import CanonicalDataQualityPlugin
 

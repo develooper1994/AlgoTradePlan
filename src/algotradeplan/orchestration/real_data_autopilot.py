@@ -19,10 +19,6 @@ from src.algotradeplan.orchestration.trade_flow import TradeFlow
 from src.algotradeplan.plugins.connectors.simulated_fill_connector import (
     SimulatedFillExecutionConnectorPlugin,
 )
-from src.algotradeplan.plugins.data.market import (
-    CcxtDependencyError,
-    CcxtMarketDataAgent,
-)
 from src.algotradeplan.plugins.risk.engine import RiskEngine
 from src.algotradeplan.plugins.strategies.ema_cross_atr_stop import (
     EmaCrossAtrStopStrategyPlugin,
@@ -161,7 +157,6 @@ def _collect_market_sources(
     max_symbols_per_source: int,
     allow_partial: bool,
     json_getter: JsonGetter | None,  # noqa: ARG002
-    market_agent: CcxtMarketDataAgent | None,
 ) -> tuple[list[SourceCoverage], dict[str, dict[str, Any]], list[dict[str, str]]]:
     source_coverages: list[SourceCoverage] = []
     datasets_by_source: dict[str, dict[str, Any]] = {}
@@ -199,25 +194,6 @@ def _collect_market_sources(
                 continue
             raise RealDataSmokeError(str(exc)) from exc
 
-    if market_agent and not source_coverages:
-        try:
-            agent = market_agent if market_agent is not None else CcxtMarketDataAgent()
-            symbols = agent.discover_assets("binanceusdm", max_symbols_per_source)
-            if symbols:
-                selected_asset = _select_preferred_asset(symbols)
-                datasets = agent.fetch_exchange_datasets("binanceusdm", selected_asset)
-                sizes = _require_dataset_coverage("binance_futures", datasets, allow_partial)
-                source_coverages.append(
-                    SourceCoverage(
-                        source="binance_futures",
-                        asset_count=len(symbols),
-                        selected_asset=selected_asset,
-                        datasets=sizes,
-                    )
-                )
-                datasets_by_source["binance_futures"] = datasets
-        except CcxtDependencyError:
-            source_issues.append({"source": "ccxt", "reason": "ccxt_unavailable"})
     if not source_coverages and allow_partial:
         offline_symbol = "BTCUSDT"
         offline_klines = [
@@ -257,7 +233,6 @@ def run_real_data_autopilot(
     max_symbols_per_source: int = 5,
     allow_partial: bool = False,
     json_getter: JsonGetter | None = None,
-    market_agent: CcxtMarketDataAgent | None = None,
 ) -> PipelineReport:
     get_json = json_getter or _default_json_getter
     logger = StructuredLogger(correlation_id=f"real-smoke-{datetime.now(UTC).timestamp()}")
@@ -269,7 +244,6 @@ def run_real_data_autopilot(
         max_symbols_per_source=max_symbols_per_source,
         allow_partial=allow_partial,
         json_getter=json_getter,
-        market_agent=market_agent,
     )
 
     news_result = None
