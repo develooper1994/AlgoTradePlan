@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from src.algotradeplan.data.errors import DataLayerMigrationError
+
 
 class InMemoryStorage:
     def write(self, records):
-        raise RuntimeError("Storage moved to MarketData.")
+        raise DataLayerMigrationError("Storage moved to MarketData.")
 
 
 class LocalArtifactStorage:
     def __init__(self, root):
-        self.root = root
+        del root
+        raise DataLayerMigrationError("Storage moved to MarketData.")
 
     def write(self, records):
-        raise RuntimeError("Storage moved to MarketData.")
+        raise DataLayerMigrationError("Storage moved to MarketData.")

@@ -80,7 +80,8 @@ class CLIEntryPointTest(unittest.TestCase):
 
     def _run(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = dict(os.environ)
-        env["MARKET_DATA_BIN"] = f"{sys.executable} {self._bridge_path}"
+        env["MARKET_DATA_BIN"] = sys.executable
+        env["MARKET_DATA_BIN_ARGS"] = json.dumps([str(self._bridge_path)])
         return subprocess.run(
             [sys.executable, "-m", "src.algotradeplan", *args],
             capture_output=True,

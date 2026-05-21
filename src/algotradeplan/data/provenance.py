@@ -5,13 +5,15 @@ from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
+from src.algotradeplan.data.errors import DataLayerMigrationError
+
 
 class ManifestProvenanceTracker:
     def __init__(self, *_args: Any, **_kwargs: Any) -> None:
         pass
 
     def capture(self, **_kwargs: Any):
-        raise RuntimeError("Provenance tracking moved to MarketData.")
+        raise DataLayerMigrationError("Provenance tracking moved to MarketData.")
 
 
 def provenance_to_dict(provenance: Any) -> dict[str, Any]:

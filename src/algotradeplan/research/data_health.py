@@ -78,7 +78,7 @@ def generate_data_health_report(
             store=False,
         )
     except MarketDataBridgeError as exc:
-        ingest = _empty_ingest(datasets=datasets, issue=str(exc))
+        ingest = _bridge_error_ingest(datasets=datasets, issue=str(exc))
     quality_issues = list(ingest.quality_report.issues)
     source_issues = [str(item.get("reason", "")) for item in ingest.source_issues]
     per_dataset = {name: int(count) for name, count in ingest.dataset_coverage.items()}
@@ -135,17 +135,29 @@ def _health_score(*, quality_issues: list[str], source_issues: list[str], per_da
     return max(0, min(100, score))
 
 
-def _empty_ingest(*, datasets: list[str], issue: str):
-    class _Ingest:
-        dataset_coverage = {name: 0 for name in datasets}
-        records: list[object] = []
-        source_issues = [{"source": "marketdata_bridge", "reason": issue}]
+@dataclass(frozen=True)
+class _BridgeUnavailableQuality:
+    passed: bool
+    checks: list[str]
+    issues: list[str]
 
-        class _Quality:
-            passed = False
-            checks = ["marketdata_bridge_available"]
-            issues = [issue]
 
-        quality_report = _Quality()
+@dataclass(frozen=True)
+class _BridgeUnavailableIngest:
+    dataset_coverage: dict[str, int]
+    records: list[object]
+    source_issues: list[dict[str, str]]
+    quality_report: _BridgeUnavailableQuality
 
-    return _Ingest()
+
+def _bridge_error_ingest(*, datasets: list[str], issue: str):
+    return _BridgeUnavailableIngest(
+        dataset_coverage={name: 0 for name in datasets},
+        records=[],
+        source_issues=[{"source": "marketdata_bridge", "reason": issue}],
+        quality_report=_BridgeUnavailableQuality(
+            passed=False,
+            checks=["marketdata_bridge_available"],
+            issues=[issue],
+        ),
+    )

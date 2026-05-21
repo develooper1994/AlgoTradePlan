@@ -88,6 +88,18 @@ class DataHubShimTest(unittest.TestCase):
         with self.assertRaises(MarketDataBridgeError):
             hub.ingest(source="offline_fallback", symbol="BTCUSDT", datasets=["kline"], store=False)
 
+    def test_ingest_handles_malformed_bridge_response(self) -> None:
+        class _MalformedRunner:
+            def __call__(self, command, *, input, capture_output, text, check):
+                operation = command[1]
+                body = [] if operation == "ingest" else []
+                return subprocess.CompletedProcess(command, 0, stdout=json.dumps(body), stderr="")
+
+        hub = DataHub(client=MarketDataBridgeClient(runner=_MalformedRunner()))
+        result = hub.ingest(source="offline_fallback", symbol="BTCUSDT", datasets=["kline"], store=False)
+        self.assertEqual(result.records, [])
+        self.assertFalse(result.quality_report.passed)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,9 @@ class DataHub:
         artifact_root: Path | None = None,
         client: MarketDataBridgeClient | None = None,
     ) -> None:
+        # Deprecated compatibility parameters are kept to avoid breaking callers
+        # during MarketData bridge migration.
+        del json_getter, quality, storage, provenance, artifact_root
         self._client = client or MarketDataBridgeClient()
 
     def sources(self) -> list[str]:

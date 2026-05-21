@@ -102,18 +102,22 @@ class RealDataAutopilotTest(unittest.TestCase):
 
     def test_pipeline_report_contains_expected_coverage(self) -> None:
         env = dict(os.environ)
-        env["MARKET_DATA_BIN"] = f"{sys.executable} {self._bridge}"
+        env["MARKET_DATA_BIN"] = sys.executable
+        env["MARKET_DATA_BIN_ARGS"] = json.dumps([str(self._bridge)])
         with tempfile.TemporaryDirectory() as tmp_dir:
             report_path = Path(tmp_dir) / "report.json"
             previous = os.environ.get("MARKET_DATA_BIN")
             os.environ["MARKET_DATA_BIN"] = env["MARKET_DATA_BIN"]
+            os.environ["MARKET_DATA_BIN_ARGS"] = env["MARKET_DATA_BIN_ARGS"]
             try:
                 report = run_real_data_autopilot(report_path=report_path, max_symbols_per_source=2)
             finally:
                 if previous is None:
                     os.environ.pop("MARKET_DATA_BIN", None)
+                    os.environ.pop("MARKET_DATA_BIN_ARGS", None)
                 else:
                     os.environ["MARKET_DATA_BIN"] = previous
+                    os.environ.pop("MARKET_DATA_BIN_ARGS", None)
 
             self.assertGreaterEqual(len(report.market_sources), 1)
             self.assertGreater(report.news_story_count, 0)

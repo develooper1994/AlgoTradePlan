@@ -84,6 +84,8 @@ def capability_map(*, client: MarketDataBridgeClient | None = None) -> dict[str,
     return mapping
 
 
+# Deprecated static snapshot retained for import compatibility.
+# Use capability_map() for live bridge-backed capability data.
 CAPABILITIES: tuple[SourceCapability, ...] = tuple()
 
 

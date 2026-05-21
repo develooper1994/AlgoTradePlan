@@ -97,7 +97,8 @@ class FrameworkScriptsTest(unittest.TestCase):
             encoding="utf-8",
         )
         cls._previous_market_data_bin = os.environ.get("MARKET_DATA_BIN")
-        os.environ["MARKET_DATA_BIN"] = f"{sys.executable} {cls._bridge}"
+        os.environ["MARKET_DATA_BIN"] = sys.executable
+        os.environ["MARKET_DATA_BIN_ARGS"] = json.dumps([str(cls._bridge)])
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -105,6 +106,7 @@ class FrameworkScriptsTest(unittest.TestCase):
             os.environ.pop("MARKET_DATA_BIN", None)
         else:
             os.environ["MARKET_DATA_BIN"] = cls._previous_market_data_bin
+        os.environ.pop("MARKET_DATA_BIN_ARGS", None)
         cls._tmp_dir.cleanup()
 
     def test_framework_status_report_shape(self) -> None:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from src.algotradeplan.data.errors import DataLayerMigrationError
+
 
 class CanonicalDataQualityPlugin:
     def validate(self, records):
-        raise RuntimeError("Quality validation moved to MarketData.")
+        raise DataLayerMigrationError("Quality validation moved to MarketData.")
