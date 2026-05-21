@@ -22,7 +22,6 @@ class PluginRegistryTest(unittest.TestCase):
         self.assertIsInstance(issues, list)
 
         expected = {
-            "example_data_source",
             "rolling_window_feature_engine",
             "ema_cross_atr_stop_strategy",
             "notional_guard_risk",
@@ -30,7 +29,6 @@ class PluginRegistryTest(unittest.TestCase):
             "drift_detecting_reconciler",
         }
         self.assertTrue(expected.issubset(set(registry)))
-        self.assertEqual(registry["example_data_source"].category, "data")
         self.assertEqual(registry["ema_cross_atr_stop_strategy"].category, "strategy")
         self.assertEqual(registry["rolling_window_feature_engine"].category, "indicators")
         self.assertEqual(registry["notional_guard_risk"].category, "risk")

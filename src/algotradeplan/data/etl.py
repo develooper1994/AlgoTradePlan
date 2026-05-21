@@ -1,4 +1,4 @@
-"""Fluent ETL facade on top of :class:`DataHub`."""
+"""Fluent ETL facade on top of MarketData-backed :class:`DataHub`."""
 
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ class ETL:
                 rows.extend(frame)
         try:
             import pandas as pd  # type: ignore
-        except Exception:  # pragma: no cover - optional dependency fallback
+        except Exception:
             return rows
         return pd.DataFrame(rows)
 

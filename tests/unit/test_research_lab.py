@@ -8,14 +8,70 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.algotradeplan.data import DataHub
 from src.algotradeplan.research import ExperimentRegistry, PreflightChecker, generate_data_health_report
 from src.algotradeplan.strategies.catalog import recommend_strategies, strategy_summary
 
 
+class _StubHub:
+    def __init__(self) -> None:
+        self._summaries = {
+            "coingecko": {
+                "source": "coingecko",
+                "asset_classes": ["crypto_spot"],
+                "extra_metadata": {},
+                "notes": "",
+            },
+            "offline_fallback": {
+                "source": "offline_fallback",
+                "asset_classes": ["crypto_perpetual"],
+                "extra_metadata": {},
+                "notes": "",
+            },
+        }
+
+    def dataset_status(self, source: str, dataset: str) -> str:
+        if source == "coingecko" and dataset == "funding":
+            return "unsupported"
+        return "fallback"
+
+    def source_summary(self, source: str) -> dict[str, object]:
+        return self._summaries[source]
+
+    def best_sources_for(self, *, dataset: str, **_kwargs: object) -> list[dict[str, str]]:
+        return [{"source": "offline_fallback", "dataset_status": "fallback"}] if dataset else []
+
+    def api_key_env(self, _source: str) -> str | None:
+        return None
+
+    def ingest(
+        self,
+        *,
+        source: str,
+        symbol: str,
+        datasets: list[str],
+        allow_partial: bool,
+        store: bool,
+    ):
+        del source, symbol, allow_partial, store
+
+        class _Ingest:
+            dataset_coverage = {dataset: 1 for dataset in datasets}
+            records = [object()]
+            source_issues = []
+
+            class _Quality:
+                passed = True
+                checks = ["records_present"]
+                issues: list[str] = []
+
+            quality_report = _Quality()
+
+        return _Ingest()
+
+
 class ResearchLabTest(unittest.TestCase):
     def test_preflight_blocks_unsupported_dataset(self) -> None:
-        result = PreflightChecker(DataHub()).check(
+        result = PreflightChecker(_StubHub()).check(
             source="coingecko",
             symbol="bitcoin",
             datasets=["kline", "funding"],
@@ -26,7 +82,7 @@ class ResearchLabTest(unittest.TestCase):
         self.assertTrue(any("funding unsupported" in issue for issue in result.blocking_issues))
 
     def test_preflight_allows_supported_offline_combo(self) -> None:
-        result = PreflightChecker(DataHub()).check(
+        result = PreflightChecker(_StubHub()).check(
             source="offline_fallback",
             symbol="BTCUSDT",
             datasets=["kline"],
@@ -37,7 +93,7 @@ class ResearchLabTest(unittest.TestCase):
 
     def test_data_health_offline_generates_score(self) -> None:
         report = generate_data_health_report(
-            hub=DataHub(),
+            hub=_StubHub(),
             source="offline_fallback",
             symbol="BTCUSDT",
             datasets=["kline", "funding"],

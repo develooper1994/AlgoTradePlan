@@ -1,20 +1,12 @@
-"""Machine-readable source capability metadata for the public data API."""
+"""Compatibility capability DTOs delegated to MarketData bridge."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
 
-_DATASET_ALIASES = {
-    "ohlcv": "kline",
-    "ticker": "tick",
-    "trades": "trade",
-    "book": "orderbook",
-    "macro_snapshot": "macro",
-    "macro_series": "macro",
-}
+from src.algotradeplan.marketdata_client import MarketDataBridgeClient
 
-# Canonical coverage/query status values used across DataHub capability APIs and docs.
 STATUS_VALUES = (
     "live",
     "partial",
@@ -26,392 +18,81 @@ STATUS_VALUES = (
 )
 
 
+_DATASET_ALIASES = {
+    "ohlcv": "kline",
+    "ticker": "tick",
+    "trades": "trade",
+    "book": "orderbook",
+    "macro_snapshot": "macro",
+    "macro_series": "macro",
+}
+
+
 @dataclass(frozen=True)
 class SourceCapability:
     source: str
-    asset_classes: list[str]
-    datasets: list[str]
-    supports_discovery: bool
-    supports_history: bool
-    supports_realtime: bool
+    asset_classes: list[str] = field(default_factory=list)
+    datasets: list[str] = field(default_factory=list)
+    supports_discovery: bool = False
+    supports_history: bool = False
+    supports_realtime: bool = False
     requires_api_key: bool = False
     api_key_env: str | None = None
     rate_limit_notes: str = ""
-    quality_level: str = "community"
+    quality_level: str = ""
     implemented_datasets: list[str] = field(default_factory=list)
     metadata_only_datasets: list[str] = field(default_factory=list)
-    implementation_status: str = "live"
+    implementation_status: str = ""
     notes: str = ""
     extra_metadata: dict[str, Any] = field(default_factory=dict)
 
 
-CAPABILITIES: tuple[SourceCapability, ...] = (
-    SourceCapability(
-        source="binance_futures",
-        asset_classes=["crypto_perpetual"],
-        datasets=["tick", "kline", "trade", "orderbook", "funding"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=True,
-        rate_limit_notes="Public futures REST endpoints; respect exchange burst limits.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "trade", "orderbook", "funding"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="bybit_linear",
-        asset_classes=["crypto_perpetual"],
-        datasets=["tick", "kline", "trade", "orderbook", "funding"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=True,
-        rate_limit_notes="Public linear market endpoints; funding available.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "trade", "orderbook", "funding"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="kraken_spot",
-        asset_classes=["crypto_spot", "forex"],
-        datasets=["tick", "kline", "trade", "orderbook"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Public spot endpoints; funding derived as unsupported.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "trade", "orderbook"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="coinbase_spot",
-        asset_classes=["crypto_spot"],
-        datasets=["tick", "kline", "trade", "orderbook"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Public exchange endpoints; no funding feed.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "trade", "orderbook"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="yahoo_unofficial",
-        asset_classes=["crypto_spot", "equity", "etf", "forex", "index", "options"],
-        datasets=["tick", "kline"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Unofficial Yahoo chart/search endpoints.",
-        quality_level="best_effort",
-        implemented_datasets=["tick", "kline"],
-        implementation_status="partial",
-        notes="Discovery + tick/kline available via unofficial chart/search responses; options coverage remains example-level metadata.",
-    ),
-    SourceCapability(
-        source="alpha_vantage",
-        asset_classes=["equity", "etf", "forex"],
-        datasets=["tick", "kline", "fundamentals"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        requires_api_key=True,
-        api_key_env="ALPHAVANTAGE_API_KEY",
-        rate_limit_notes="Free tier is heavily rate limited.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "fundamentals"],
-        implementation_status="api_key",
-        notes="Framework fetches GLOBAL_QUOTE, intraday/daily kline, and Company Overview fundamentals when ALPHAVANTAGE_API_KEY is available; ingest reports api_key_required when the key is missing.",
-    ),
-    SourceCapability(
-        source="twelve_data",
-        asset_classes=["equity", "etf", "forex", "index", "crypto_spot"],
-        datasets=["tick", "kline"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        requires_api_key=True,
-        api_key_env="TWELVEDATA_API_KEY",
-        rate_limit_notes="API-keyed intraday time series provider.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline"],
-        implementation_status="api_key",
-    ),
-    SourceCapability(
-        source="polygon_io",
-        asset_classes=["equity", "etf", "options", "forex", "crypto_spot"],
-        datasets=["tick", "kline", "trade", "news", "corporate_actions"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=True,
-        requires_api_key=True,
-        api_key_env="POLYGON_API_KEY",
-        rate_limit_notes="Plan-dependent market coverage.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "trade", "news", "corporate_actions"],
-        implementation_status="api_key_or_plan",
-        notes="Aggregates/quotes are fetchable and news/splits skeleton fetches are available; options richness and some endpoints remain API-plan dependent.",
-    ),
-    SourceCapability(
-        source="finnhub",
-        asset_classes=["equity", "etf", "forex", "crypto_spot"],
-        datasets=["tick", "kline", "news", "fundamentals"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=True,
-        requires_api_key=True,
-        api_key_env="FINNHUB_API_KEY",
-        rate_limit_notes="Token-based provider with broad fundamentals/news coverage.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "news", "fundamentals"],
-        implementation_status="api_key",
-        notes="Framework fetches quote/candles plus company-news and profile skeletons when FINNHUB_API_KEY is available; ingest reports api_key_required when token is missing.",
-    ),
-    SourceCapability(
-        source="quandl",
-        asset_classes=["futures", "macro", "equity"],
-        datasets=["kline", "macro", "fundamentals"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        requires_api_key=True,
-        api_key_env="QUANDL_API_KEY",
-        rate_limit_notes="Historical and economic data only.",
-        quality_level="production",
-        implemented_datasets=["kline", "macro"],
-        metadata_only_datasets=["fundamentals"],
-        implementation_status="api_key",
-        notes="Current registry adapter focuses on historical futures/price series and exposes a macro-style skeleton for dataset snapshots.",
-    ),
-    SourceCapability(
-        source="iex_cloud",
-        asset_classes=["equity", "etf"],
-        datasets=["tick", "kline", "trade", "news", "corporate_actions"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=True,
-        requires_api_key=True,
-        api_key_env="IEX_CLOUD_API_KEY",
-        rate_limit_notes="Token required; plan-specific endpoints.",
-        quality_level="production",
-        implemented_datasets=["tick", "kline", "trade", "news", "corporate_actions"],
-        implementation_status="api_key",
-        notes="Framework fetches quote/chart plus news and dividend-style corporate action skeletons when IEX_CLOUD_API_KEY is available; ingest reports api_key_required when token is missing.",
-    ),
-    SourceCapability(
-        source="frankfurter_fx",
-        asset_classes=["forex", "macro"],
-        datasets=["macro", "tick"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Public FX reference rates.",
-        quality_level="production",
-        implemented_datasets=["macro", "tick"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="coingecko",
-        asset_classes=["crypto_spot"],
-        datasets=["tick", "kline", "news"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Public crypto market metadata and pricing.",
-        quality_level="best_effort",
-        implemented_datasets=["tick", "kline"],
-        metadata_only_datasets=["news"],
-        implementation_status="partial",
-        notes="OHLCV is synthesized from market_chart close/volume buckets; pro tiers can widen endpoint coverage.",
-        extra_metadata={
-            "kline": {
-                "synthetic_ohlcv": True,
-                "source_granularity": "close-based market_chart buckets",
-                "note": "Synthetic OHLCV is derived from close/volume market_chart buckets and is not raw exchange candle data.",
-            }
-        },
-    ),
-    SourceCapability(
-        source="stooq",
-        asset_classes=["equity", "etf", "index", "forex"],
-        datasets=["kline"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="End-of-day style market coverage.",
-        quality_level="best_effort",
-        implemented_datasets=["kline"],
-        implementation_status="live",
-        notes="Symbols/datasets are typically user-provided (e.g. aapl.us); timestamps are normalized from source dates to epoch-ms.",
-    ),
-    SourceCapability(
-        source="fred",
-        asset_classes=["macro"],
-        datasets=["macro"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        requires_api_key=True,
-        api_key_env="FRED_API_KEY",
-        rate_limit_notes="Macro time series provider; light best-effort public usage can work but API key is recommended.",
-        quality_level="production",
-        implemented_datasets=["macro"],
-        implementation_status="api_key",
-        notes="Provides macro series such as FEDFUNDS, CPIAUCSL, UNRATE, DGS10, and GDP.",
-    ),
-    SourceCapability(
-        source="gdelt",
-        asset_classes=["news"],
-        datasets=["news"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="News/event metadata feed.",
-        quality_level="best_effort",
-        implemented_datasets=["news"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="financial_modeling_prep",
-        asset_classes=["equity", "etf", "options"],
-        datasets=["tick", "kline", "fundamentals", "corporate_actions", "news"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        requires_api_key=True,
-        api_key_env="FMP_API_KEY",
-        rate_limit_notes="Optional provider for fundamentals, news, and corporate actions.",
-        quality_level="best_effort",
-        implemented_datasets=["tick", "kline", "fundamentals", "corporate_actions", "news"],
-        implementation_status="api_key",
-        notes="Minimal adapter is available through the DataHub registry; endpoint scope still depends on API plan.",
-    ),
-    SourceCapability(
-        source="sec_edgar",
-        asset_classes=["equity"],
-        datasets=["fundamentals", "news", "corporate_actions"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Public filing metadata and disclosures.",
-        quality_level="production",
-        implemented_datasets=["fundamentals", "news", "corporate_actions"],
-        implementation_status="partial",
-        notes="Uses public SEC ticker, submissions, and company facts endpoints for filing/news-style metadata.",
-    ),
-    SourceCapability(
-        source="world_bank",
-        asset_classes=["macro"],
-        datasets=["macro"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Global macro indicators and development statistics.",
-        quality_level="production",
-        implemented_datasets=["macro"],
-        implementation_status="live",
-        notes="Pass `country=` to target WLD, TUR, USA, or other ISO/World Bank country codes.",
-    ),
-    SourceCapability(
-        source="ecb",
-        asset_classes=["macro", "forex"],
-        datasets=["macro", "tick"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="ECB market and macro reference series.",
-        quality_level="production",
-        implemented_datasets=["tick", "macro"],
-        implementation_status="live",
-        notes="FX fetches are parameterized by quote symbol such as USD, GBP, or JPY.",
-    ),
-    SourceCapability(
-        source="defillama",
-        asset_classes=["crypto_spot", "macro"],
-        datasets=["fundamentals", "macro", "news"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="DeFi TVL and protocol metadata.",
-        quality_level="best_effort",
-        implemented_datasets=["macro", "fundamentals"],
-        metadata_only_datasets=["news"],
-        implementation_status="partial",
-        notes="Protocol catalog is cached in-process to avoid repeated list fetches; macro tracks TVL time-series and fundamentals track protocol-level snapshot fields.",
-        extra_metadata={
-            "macro": {"focus": "chain TVL time series"},
-            "fundamentals": {"focus": "protocol TVL and market-cap metadata"},
-        },
-    ),
-    SourceCapability(
-        source="hacker_news",
-        asset_classes=["news"],
-        datasets=["news"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Public story search used as a smoke-news source.",
-        quality_level="best_effort",
-        implemented_datasets=["news"],
-        implementation_status="live",
-    ),
-    SourceCapability(
-        source="tefas_public",
-        asset_classes=["mutual_fund", "pension_fund"],
-        datasets=[
-            "fund_nav",
-            "fund_profile",
-            "fund_return",
-            "fund_allocation",
-            "fund_size",
-            "fund_fee",
-            "fund_announcement",
-            "fund_statistics",
-        ],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        quality_level="best_effort",
-        implemented_datasets=[
-            "fund_nav",
-            "fund_profile",
-            "fund_return",
-            "fund_allocation",
-            "fund_size",
-            "fund_fee",
-            "fund_announcement",
-            "fund_statistics",
-        ],
-        implementation_status="partial",
-        notes="Optional tefas-cli integration. Uses TEFAS public web JSON endpoints and fund-page parser through tefas-cli when available. Not based on legacy tefas_scraper /api/DB endpoints.",
-        extra_metadata={
-            "country": "TR",
-            "market": "Turkey",
-            "access_model": "unofficial_public_web",
-            "integration": "optional_tefas_cli",
-            "optional_env": ["TEFAS_CLI_BIN", "TEFAS_FFI_LIB"],
-            "official_api": False,
-            "source_stability": "moderate_fragile",
-            "preflight_suggestion": "Build tefas-cli and set TEFAS_CLI_BIN or TEFAS_FFI_LIB.",
-        },
-    ),
-    SourceCapability(
-        source="offline_fallback",
-        asset_classes=["crypto_perpetual"],
-        datasets=["tick", "kline", "trade", "orderbook", "funding"],
-        supports_discovery=True,
-        supports_history=True,
-        supports_realtime=False,
-        rate_limit_notes="Deterministic fallback used only when live public sources are unreachable.",
-        quality_level="fallback",
-        implemented_datasets=["tick", "kline", "trade", "orderbook", "funding"],
-        implementation_status="fallback",
-    ),
-)
-
-
 def canonical_dataset_name(dataset: str) -> str:
-    return _DATASET_ALIASES.get(dataset.lower(), dataset.lower())
+    normalized = dataset.strip().lower()
+    return _DATASET_ALIASES.get(normalized, normalized)
 
 
-def capability_map() -> dict[str, SourceCapability]:
-    return {item.source: item for item in CAPABILITIES}
+def capability_map(*, client: MarketDataBridgeClient | None = None) -> dict[str, SourceCapability]:
+    bridge = client or MarketDataBridgeClient()
+    rows = bridge.query("capabilities", default=[])
+    mapping: dict[str, SourceCapability] = {}
+    if not isinstance(rows, list):
+        return mapping
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source = str(row.get("source", "")).strip()
+        if not source:
+            continue
+        mapping[source] = SourceCapability(
+            source=source,
+            asset_classes=[str(item) for item in row.get("asset_classes", []) if isinstance(item, str)],
+            datasets=[canonical_dataset_name(str(item)) for item in row.get("datasets", []) if isinstance(item, str)],
+            supports_discovery=bool(row.get("supports_discovery", False)),
+            supports_history=bool(row.get("supports_history", False)),
+            supports_realtime=bool(row.get("supports_realtime", False)),
+            requires_api_key=bool(row.get("requires_api_key", False)),
+            api_key_env=row.get("api_key_env") if isinstance(row.get("api_key_env"), str) else None,
+            rate_limit_notes=str(row.get("rate_limit_notes", "")),
+            quality_level=str(row.get("quality_level", "")),
+            implemented_datasets=[canonical_dataset_name(str(item)) for item in row.get("implemented_datasets", []) if isinstance(item, str)],
+            metadata_only_datasets=[canonical_dataset_name(str(item)) for item in row.get("metadata_only_datasets", []) if isinstance(item, str)],
+            implementation_status=str(row.get("implementation_status", "")),
+            notes=str(row.get("notes", "")),
+            extra_metadata=row.get("extra_metadata") if isinstance(row.get("extra_metadata"), dict) else {},
+        )
+    return mapping
+
+
+# Deprecated static snapshot retained for import compatibility.
+# Use capability_map() for live bridge-backed capability data.
+CAPABILITIES: tuple[SourceCapability, ...] = tuple()
+
+
+__all__ = [
+    "STATUS_VALUES",
+    "SourceCapability",
+    "CAPABILITIES",
+    "canonical_dataset_name",
+    "capability_map",
+]

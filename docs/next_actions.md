@@ -20,7 +20,7 @@
 ## P2 - Reduce metadata-only adapters
 - Improve CoinGecko synthetic OHLCV transparency and dataset notes.
 - Improve DefiLlama TVL/protocol metadata clarity for macro/fundamentals.
-- Reduce metadata-only adapters in priority order: coingecko, defillama, quandl.
+- Reduce metadata-only adapters in priority order: none.
 - Complete missing strategy metadata entries in strategy catalog.
 
 ## P3 - Production hardening

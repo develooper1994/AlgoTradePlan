@@ -1,19 +1,13 @@
-"""MarketData compatibility package for staged data-layer extraction.
+"""Thin compatibility surface mirroring MarketData client wrappers."""
 
-This package mirrors the current AlgoTradePlan data-layer public surface while
-internally reusing existing implementations for parity-safe migration.
-"""
-
-from src.marketdata.capabilities import SourceCapability
-from src.marketdata.contracts import (
+from src.algotradeplan.data import DataHub, ETL, IngestResult, SourceCapability
+from src.algotradeplan.plugins.data.contracts import (
     DataRecord,
     DataRequest,
     ProvenanceRecord,
     QualityReport,
     StorageReceipt,
 )
-from src.marketdata.etl import ETL
-from src.marketdata.ingestion import DataHub, IngestResult
 
 __all__ = [
     "DataHub",

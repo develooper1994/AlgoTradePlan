@@ -8,6 +8,19 @@ Production-grade, plugin-based algorithmic trading research framework.
 pip install -e ".[data]"
 ```
 
+## Data Layer Ownership (MarketData Cutover)
+
+AlgoTradePlan artık data-layer implementasyonu sahibi değildir. Tüm data erişimi,
+harici **MarketData** bridge/client üzerinden yapılır.
+
+- Gerçek data kullanımı için `MARKET_DATA_BIN` ayarlanmalıdır.
+- AlgoTradePlan `DataHub`/`ETL` API’leri artık ince bir uyumluluk shim’idir.
+- Provider/adapter/normalize/quality/storage/provenance logic’i MarketData tarafındadır.
+
+```bash
+export MARKET_DATA_BIN=/path/to/market_data_bridge
+```
+
 ## 3-Command Offline Demo
 
 ```bash
@@ -132,10 +145,10 @@ make runbook_check    # verify runbook index
 ```
 src/algotradeplan/
 ├── core/           # schemas, intent model, contracts, types
-├── data/           # DataHub, ETL, coverage, query, hub
+├── data/           # thin MarketData compatibility shim (DataHub/ETL/query surface)
 ├── portfolio/      # PortfolioManager, PositionBook, TradeLedger
 ├── plugins/
-│   ├── data/       # market/news/macro sources (23 adapters)
+│   ├── data/       # shared DTO/contracts only
 │   ├── risk/       # RiskEngine, NotionalGuardRiskPlugin
 │   ├── strategies/ # EmaCrossAtrStop, parameter optimizer
 │   ├── indicators/ # EMA, ATR, Bollinger

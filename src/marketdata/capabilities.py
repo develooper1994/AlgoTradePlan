@@ -1,4 +1,4 @@
-"""MarketData source capability model and registry compatibility exports."""
+"""MarketData compatibility exports via AlgoTradePlan thin wrappers."""
 
 from src.algotradeplan.data.capabilities import (
     CAPABILITIES,

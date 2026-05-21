@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -17,6 +19,96 @@ from scripts.tutorial_mode import build_tutorial_results
 
 
 class FrameworkScriptsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._tmp_dir = tempfile.TemporaryDirectory()
+        cls._bridge = Path(cls._tmp_dir.name) / "market_data_bridge_stub.py"
+        cls._bridge.write_text(
+            textwrap.dedent(
+                """
+                import json
+                import sys
+
+                operation = sys.argv[1] if len(sys.argv) > 1 else ""
+                payload = json.loads(sys.stdin.read() or "{}")
+                source = payload.get("source", "offline_fallback")
+
+                if operation == "sources":
+                    out = ["offline_fallback", "coingecko"]
+                elif operation == "coverage_table":
+                    out = [{"Source": "offline_fallback", "OHLCV/Kline": "fallback"}]
+                elif operation == "source_summary":
+                    out = {
+                        "source": source,
+                        "implementation_status": "fallback",
+                        "implemented_datasets": ["kline", "trade", "orderbook", "funding", "macro", "news"],
+                        "asset_classes": ["crypto_perpetual"],
+                        "metadata_only_datasets": [],
+                        "dataset_statuses": {"kline": "fallback"},
+                        "asset_statuses": {"crypto_perpetual": "fallback"},
+                        "requires_api_key": False,
+                        "notes": "",
+                        "extra_metadata": {},
+                    }
+                elif operation == "supported_use_cases":
+                    out = ["crypto_spot_kline", "offline_demo"]
+                elif operation == "recommend_sources":
+                    out = [{"source": "offline_fallback", "dataset": "kline", "dataset_status": "fallback", "asset_status": "fallback", "requires_api_key": "no", "reason": "offline-safe"}]
+                elif operation == "available_datasets":
+                    out = ["kline", "trade", "orderbook", "funding", "macro", "news"]
+                elif operation == "discover_assets":
+                    out = ["BTCUSDT", "ETHUSDT"]
+                elif operation == "dataset_status":
+                    out = "fallback"
+                elif operation == "sources_for":
+                    out = ["offline_fallback"]
+                elif operation == "best_sources_for":
+                    out = [{"source": "offline_fallback", "dataset": "kline", "dataset_status": "fallback", "asset_status": "fallback", "requires_api_key": "no", "reason": "offline-safe"}]
+                elif operation == "explain_source":
+                    out = {"source": source, "implementation_status": "fallback", "notes": "offline-safe"}
+                elif operation == "explain_dataset":
+                    out = {"dataset": payload.get("dataset", ""), "best_sources_no_api_key": [{"source": "offline_fallback"}]}
+                elif operation == "ingest":
+                    datasets = payload.get("datasets", ["kline"])
+                    symbol = payload.get("symbol", "BTCUSDT")
+                    out = {
+                        "source": source,
+                        "symbol": symbol,
+                        "requested_datasets": datasets,
+                        "dataset_coverage": {name: 1 for name in datasets},
+                        "records": [
+                            {"key": f"{name}-1", "observed_at": "2026-01-01T00:00:00Z", "domain": "market", "source": source, "asset_type": "crypto", "payload": {"close": 100.0, "rates": {"EUR": 0.9}}, "metadata": {"dataset": name}}
+                            for name in datasets
+                        ],
+                        "quality_report": {"passed": True, "checks": ["records_present"], "issues": []},
+                        "provenance": {"request": {"dataset": ",".join(datasets), "symbol": symbol, "parameters": {}}, "source_plugin_id": source, "storage_receipts": [], "record_keys": [f"{name}-1" for name in datasets], "revision": "rev-1"},
+                        "storage_receipts": [],
+                        "source_issues": [],
+                    }
+                elif operation == "load_market_data":
+                    out = [{"close": 100.0, "high": 101.0, "low": 99.0}]
+                else:
+                    out = []
+
+                print(json.dumps(out))
+                """
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        cls._previous_market_data_bin = os.environ.get("MARKET_DATA_BIN")
+        os.environ["MARKET_DATA_BIN"] = sys.executable
+        os.environ["MARKET_DATA_BIN_ARGS"] = json.dumps([str(cls._bridge)])
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls._previous_market_data_bin is None:
+            os.environ.pop("MARKET_DATA_BIN", None)
+        else:
+            os.environ["MARKET_DATA_BIN"] = cls._previous_market_data_bin
+        os.environ.pop("MARKET_DATA_BIN_ARGS", None)
+        cls._tmp_dir.cleanup()
+
     def test_framework_status_report_shape(self) -> None:
         report = build_status_report()
         self.assertIn("components", report)

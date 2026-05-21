@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from src.algotradeplan.data import DataHub
+from src.algotradeplan.marketdata_client import MarketDataBridgeError
 
 
 @dataclass(frozen=True)
@@ -68,13 +69,16 @@ def generate_data_health_report(
     allow_partial: bool = False,
 ) -> DataHealthReport:
     selected_hub = hub or DataHub()
-    ingest = selected_hub.ingest(
-        source=source,
-        symbol=symbol,
-        datasets=datasets,
-        allow_partial=allow_partial,
-        store=False,
-    )
+    try:
+        ingest = selected_hub.ingest(
+            source=source,
+            symbol=symbol,
+            datasets=datasets,
+            allow_partial=allow_partial,
+            store=False,
+        )
+    except MarketDataBridgeError as exc:
+        ingest = _bridge_error_ingest(datasets=datasets, issue=str(exc))
     quality_issues = list(ingest.quality_report.issues)
     source_issues = [str(item.get("reason", "")) for item in ingest.source_issues]
     per_dataset = {name: int(count) for name, count in ingest.dataset_coverage.items()}
@@ -129,3 +133,31 @@ def _health_score(*, quality_issues: list[str], source_issues: list[str], per_da
     missing_datasets = requested_count - len([count for count in per_dataset.values() if count > 0])
     score -= max(0, missing_datasets) * 8
     return max(0, min(100, score))
+
+
+@dataclass(frozen=True)
+class _BridgeUnavailableQuality:
+    passed: bool
+    checks: list[str]
+    issues: list[str]
+
+
+@dataclass(frozen=True)
+class _BridgeUnavailableIngest:
+    dataset_coverage: dict[str, int]
+    records: list[object]
+    source_issues: list[dict[str, str]]
+    quality_report: _BridgeUnavailableQuality
+
+
+def _bridge_error_ingest(*, datasets: list[str], issue: str):
+    return _BridgeUnavailableIngest(
+        dataset_coverage={name: 0 for name in datasets},
+        records=[],
+        source_issues=[{"source": "marketdata_bridge", "reason": issue}],
+        quality_report=_BridgeUnavailableQuality(
+            passed=False,
+            checks=["marketdata_bridge_available"],
+            issues=[issue],
+        ),
+    )
