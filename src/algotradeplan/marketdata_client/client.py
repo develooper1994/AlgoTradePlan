@@ -63,11 +63,11 @@ class MarketDataBridgeClient:
                 text=True,
                 check=False,
             )
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, PermissionError) as exc:
             if allow_missing:
                 return default
             raise MarketDataBridgeError(
-                "MarketData bridge binary not found. Set MARKET_DATA_BIN to a valid bridge executable."
+                "MarketData bridge binary not found or not executable. Set MARKET_DATA_BIN to a valid bridge executable."
             ) from exc
 
         if result.returncode != 0:
