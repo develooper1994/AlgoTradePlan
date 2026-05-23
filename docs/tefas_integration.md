@@ -11,11 +11,14 @@ AlgoTradePlan, TEFAS kaynağını opsiyonel olarak `tefas-cli` üzerinden destek
 ## Runtime Kurulum
 
 ```bash
+# Preferred (canonical): set `TEFAS_CLI_CMD` to the tefas-cli executable.
+export TEFAS_CLI_CMD=/path/to/tefas-cli
+# Backward-compatible: `TEFAS_CLI_BIN` is still supported.
 export TEFAS_CLI_BIN=/path/to/tefas-cli
 export TEFAS_FFI_LIB=/path/to/libtefas_ffi.so
 ```
 
-Entegre fetch için `TEFAS_CLI_BIN` önerilir. `TEFAS_FFI_LIB` tespit/dokümantasyon için desteklenir.
+Entegre fetch için `TEFAS_CLI_CMD` önerilir; `TEFAS_CLI_BIN` geri uyumluluk içindir. `TEFAS_FFI_LIB` tespit/dokümantasyon için desteklenir.
 
 ## Source ve Datasetler
 
@@ -44,7 +47,7 @@ python -m algotradeplan health --source tefas_public --symbol AFT --datasets fun
 - Framework crash etmez.
 - `tefas_public` görünür kalır.
 - Ingest/preflight `optional_dependency_missing:tefas-cli` ile anlamlı issue döndürür.
-- Öneri: `Build tefas-cli and set TEFAS_CLI_BIN or TEFAS_FFI_LIB.`
+-- Öneri: `Build tefas-cli and set TEFAS_CLI_CMD` (or `TEFAS_CLI_BIN` for backward compatibility) `or TEFAS_FFI_LIB`.
 
 ## Sınırlamalar
 

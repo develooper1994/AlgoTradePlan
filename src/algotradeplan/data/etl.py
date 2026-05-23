@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.algotradeplan.data.hub import DataHub, IngestResult
+from integration.algotradeplan.hub_bridge import DataHub, IngestResult
 
 
 class ETL:

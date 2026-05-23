@@ -267,7 +267,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:  # noqa: ARG001
     else:
         ok_items.append("api_keys: none set (public sources work without API keys)")
 
-    tefas_cli_bin = os.environ.get("TEFAS_CLI_BIN", "").strip()
+    # Prefer the canonical name `TEFAS_CLI_CMD`. Fall back to legacy `TEFAS_CLI_BIN` for compatibility.
+    tefas_cli_cmd = os.environ.get("TEFAS_CLI_CMD", "").strip()
+    tefas_cli_bin = tefas_cli_cmd or os.environ.get("TEFAS_CLI_BIN", "").strip()
     tefas_ffi_lib = os.environ.get("TEFAS_FFI_LIB", "").strip()
     tefas_cli_ok = False
     tefas_ffi_ok = False
@@ -276,7 +278,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:  # noqa: ARG001
         cli_path = Path(tefas_cli_bin)
         tefas_cli_ok = cli_path.exists() and os.access(cli_path, os.X_OK)
         if not tefas_cli_ok:
-            issues.append("TEFAS_CLI_BIN is set but not executable")
+            issues.append("TEFAS CLI path is set but not executable: ensure TEFAS_CLI_CMD or TEFAS_CLI_BIN points to a runnable binary")
     if tefas_ffi_lib:
         ffi_path = Path(tefas_ffi_lib)
         tefas_ffi_ok = ffi_path.exists()
@@ -299,10 +301,12 @@ def cmd_doctor(args: argparse.Namespace) -> int:  # noqa: ARG001
         print(f"  ✗ {item}")
     print()
     print("TEFAS integration:")
-    if tefas_cli_bin:
+    if tefas_cli_cmd:
+        print(f"  - TEFAS_CLI_CMD: {'ok' if tefas_cli_ok else 'invalid'}")
+    elif tefas_cli_bin:
         print(f"  - TEFAS_CLI_BIN: {'ok' if tefas_cli_ok else 'invalid'}")
     else:
-        print("  - TEFAS_CLI_BIN: missing")
+        print("  - TEFAS_CLI_CMD/TEFAS_CLI_BIN: missing")
     if tefas_ffi_lib:
         print(f"  - TEFAS_FFI_LIB: {'ok' if tefas_ffi_ok else 'invalid'}")
     else:
